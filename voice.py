@@ -78,7 +78,7 @@ async def ws_msg():
             elif now == 4:
                 print('4:', data)
                 print(f'ssrc=1357 ffmpeg rtp url: rtp://{ip}:{port}?rtcpport={rtcp_port}')
-                subprocess.Popen(f"ffmpeg -re -loglevel level+info -nostats -stream_loop -1 -i zmq:tcp://127.0.0.1:1234 -map 0:a:0 -acodec libopus -ab 128k -filter:a volume=0.8 -ac 2 -ar 48000 -f tee [select=a:f=rtp:ssrc=1357:payload_type=100]rtp://{ip}:{port}?rtcpport={rtcp_port}",shell=True)
+                subprocess.Popen(f"ffmpeg -re -loglevel level+info -nostats -stream_loop -1 -i file:zmq:tcp://127.0.0.1:1234 -map 0:a:0 -acodec libopus -ab 128k -filter:a volume=0.8 -ac 2 -ar 48000 -f tee [select=a:f=rtp:ssrc=1357:payload_type=100]rtp://{ip}:{port}?rtcpport={rtcp_port}",shell=True)
                 now = 5
             else:
                 if 'notification' in data and 'method' in data and data['method'] == 'disconnect':
