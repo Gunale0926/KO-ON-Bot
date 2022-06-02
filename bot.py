@@ -272,7 +272,7 @@ async def listen(msg: Message, *args):
     global playtime
     global starttime
     if p!={}:
-        os.killpg(os.getpgid(p.pid+1), signal.SIGTERM)
+        os.kill(p.pid+1, signal.SIGTERM)
     print(song_name)
     await msg.ctx.channel.send("即将播放请稍等")
     d = {"hlpretag": "<span class=\"s-fc7\">", "hlposttag": "</span>", "s": song_name, "type": "1", "offset": "0",
@@ -337,7 +337,8 @@ async def nextmusic(msg: Message):
     global p
     global playtime
     global starttime
-    os.killpg(os.getpgid(p.pid+1), signal.SIGTERM)
+    if p!={}:
+        os.kill(p.pid+1, signal.SIGTERM)
     song_name=playlist[listid]
     await msg.ctx.channel.send("即将播放: "+song_name)
     d = {"hlpretag": "<span class=\"s-fc7\">", "hlposttag": "</span>", "s": song_name, "type": "1", "offset": "0",
