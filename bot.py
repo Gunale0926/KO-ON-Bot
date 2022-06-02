@@ -345,7 +345,7 @@ async def listen(msg: Message, *args):
                         open("tmp.mp3","wb").write(musicfile.content)
                         starttime=time.time()
                         playtime=0
-                        p = subprocess.Popen('ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:1234',shell=True)
+                        p = subprocess.Popen('ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:1234',shell=False)
                         break
 
                 else:
@@ -384,7 +384,7 @@ async def conti(msg: Message):
     print(playtime)
     s='ffmpeg -re -nostats -ss '+str(playtime)+' -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:1234'
     print(s)
-    p = subprocess.Popen(s,shell=True)
+    p = subprocess.Popen(s,shell=Flase)
     starttime=time.time()
     #subprocess.Popen("khl-voice --token 1/MTExNDc=/XskugJgHwEKRz+RLipoqOw== --input tmp.mp3 --channel 7395538237423185")
     await msg.ctx.channel.send("已开始播放")
@@ -448,7 +448,7 @@ async def nextmusic(msg: Message):
                         open("tmp.mp3","wb").write(musicfile.content)
                         starttime=time.time()
                         playtime=0
-                        p = subprocess.Popen('ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:1234',shell=True)
+                        p = subprocess.Popen('ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:1234',shell=False)
                         break
 
                 else:
@@ -502,7 +502,7 @@ async def reset(msg: Message):
     print(playtime)
     p.terminate()
     p.wait()
-    p = subprocess.Popen('echo',shell=True)
+    p = subprocess.Popen('echo',shell=False)
     #subprocess.Popen("khl-voice --token 1/MTExNDc=/XskugJgHwEKRz+RLipoqOw== --input tmp.mp3 --channel 7395538237423185")
     await msg.ctx.channel.send("复位完成")
 # everything done, go ahead now!
