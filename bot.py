@@ -364,6 +364,7 @@ async def paus(msg: Message):
     #f.truncate();
     global p
     global pausetime
+    print("kill "+str(int(p.pid)))
     subprocess.Popen("kill "+str(int(p.pid)) ,shell=True) #通过pid来杀进程，在window上有效
     pausetime=time.time()
     #subprocess.Popen("khl-voice --token 1/MTExNDc=/XskugJgHwEKRz+RLipoqOw== --input tmp.mp3 --channel 7395538237423185")
