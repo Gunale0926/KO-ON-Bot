@@ -24,7 +24,7 @@ async def get_gateway(channel_id: str) -> str:
 async def connect_ws():
     global ws_clients
     gateway = await get_gateway('8143243977723496')
-    print(gateway)
+    #print(gateway)
     async with aiohttp.ClientSession() as session:
         async with session.ws_connect(gateway) as ws:
             ws_clients.append(ws)
@@ -43,7 +43,7 @@ async def ws_msg():
             break
         await asyncio.sleep(0.1)
     a['1']['id'] = random.randint(1000000, 9999999)
-    print('1:', a['1'])
+    #print('1:', a['1'])
     await ws_clients[0].send_json(a['1'])
     now = 1
     ip = ''
@@ -53,42 +53,44 @@ async def ws_msg():
         if len(wait_handler_msgs) != 0:
             data = json.loads(wait_handler_msgs.pop(0))
             if now == 1:
-                print('1:', data)
+                #print('1:', data)
                 a['2']['id'] = random.randint(1000000, 9999999)
-                print('2:', a['2'])
+                #print('2:', a['2'])
                 await ws_clients[0].send_json(a['2'])
                 now = 2
             elif now == 2:
-                print('2:', data)
+                #print('2:', data)
                 a['3']['id'] = random.randint(1000000, 9999999)
-                print('3:', a['3'])
+                #print('3:', a['3'])
                 await ws_clients[0].send_json(a['3'])
                 now = 3
             elif now == 3:
-                print('3:', data)
+                #print('3:', data)
                 transport_id = data['data']['id']
                 ip = data['data']['ip']
                 port = data['data']['port']
                 rtcp_port = data['data']['rtcpPort']
                 a['4']['data']['transportId'] = transport_id
                 a['4']['id'] = random.randint(1000000, 9999999)
-                print('4:', a['4'])
+                #print('4:', a['4'])
                 await ws_clients[0].send_json(a['4'])
                 now = 4
             elif now == 4:
-                print('4:', data)
-                print(f'ssrc=1357 ffmpeg rtp url: rtp://{ip}:{port}?rtcpport={rtcp_port}')
+                #print('4:', data)
+                #print(f'ssrc=1357 ffmpeg rtp url: rtp://{ip}:{port}?rtcpport={rtcp_port}')
                 subprocess.Popen(f"ffmpeg -re -loglevel level+info -nostats -stream_loop -1 -i zmq:tcp://127.0.0.1:1234 -map 0:a:0 -acodec libopus -ab 128k -filter:a volume=0.8 -ac 2 -ar 48000 -f tee [select=a:f=rtp:ssrc=1357:payload_type=100]rtp://{ip}:{port}?rtcpport={rtcp_port}",shell=True)
                 now = 5
             else:
                 if 'notification' in data and 'method' in data and data['method'] == 'disconnect':
-                    print('The connection had been disconnected', data)
+                    #print('The connection had been disconnected', data)
+                    pass
                 elif 'notification' in data and 'method' in data and data['method'] == 'networkStat' and '机器人ID' in data['data']['stat']:
                     # await (ws_clients.pop(0)).close()
                     # return
                     pass
                 else:
-                    print(data)
+                    #print(data)
+                    pass
             continue
         await asyncio.sleep(0.1)
 

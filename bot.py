@@ -10,7 +10,7 @@ import binascii
 import string
 from urllib import parse
 import requests
-from Crypto.Cipher import AES
+from Cryptodome.Cipher import AES
 import psutil
 import re
 starttime=0
@@ -313,7 +313,8 @@ async def listen(msg: Message, *args):
     global p
     global playtime
     global starttime
-    subprocess.Popen("kill "+str(int(p.pid)+1) ,shell=True)
+    print("kill "+str(int(p.pid)))
+    subprocess.Popen("kill "+str(int(p.pid)) ,shell=True)
     print(song_name)
     await msg.ctx.channel.send("即将播放请稍等")
     d = {"hlpretag": "<span class=\"s-fc7\">", "hlposttag": "</span>", "s": song_name, "type": "1", "offset": "0",
@@ -322,7 +323,6 @@ async def listen(msg: Message, *args):
     random_param = get_random()
     param = get_final_param(d, random_param)
     song_list = get_music_list(param['params'], param['encSecKey'])
-    print(song_list)
     if len(str(json.loads(song_list))) >0:
         if json.loads(song_list)['result']['songCount'] > 0:
             song_list = json.loads(song_list)['result']['songs']
@@ -335,12 +335,10 @@ async def listen(msg: Message, *args):
                 param = get_final_param(d, random_param)
                 song_info = get_reply(param['params'], param['encSecKey'])
                 if len(song_info) > 0:
-
                     song_info = json.loads(song_info)
                     if song_info['data'][0]['code']==-110:
                         continue
                     else:
-                        print(str(song_info))
                         song_url = json.dumps(song_info['data'][0]['url'], ensure_ascii=False)
                         print(song_url)
                         musicfile=requests.get(eval(song_url))
@@ -365,9 +363,9 @@ async def paus(msg: Message):
     #f=open("tmp.mp3","wb")
     #f.truncate();
     global p
-    print(p)
+    print("kill "+str(int(p.pid)))
     global pausetime
-    subprocess.Popen("kill "+str(int(p.pid)+1) ,shell=True) #通过pid来杀进程，在window上有效
+    subprocess.Popen("kill "+str(int(p.pid)) ,shell=True) #通过pid来杀进程，在window上有效
     pausetime=time.time()
     #subprocess.Popen("khl-voice --token 1/MTExNDc=/XskugJgHwEKRz+RLipoqOw== --input tmp.mp3 --channel 7395538237423185")
     await msg.ctx.channel.send("已暂停播放")
@@ -415,7 +413,7 @@ async def nextmusic(msg: Message):
     global p
     global playtime
     global starttime
-    subprocess.Popen("kill "+str(int(p.pid)+1) ,shell=True)
+    subprocess.Popen("kill "+str(int(p.pid)) ,shell=True)
     song_name=playlist[listid]
     await msg.ctx.channel.send("即将播放: "+song_name)
     d = {"hlpretag": "<span class=\"s-fc7\">", "hlposttag": "</span>", "s": song_name, "type": "1", "offset": "0",
@@ -501,7 +499,7 @@ async def reset(msg: Message):
     print(starttime)
     print(pausetime)
     print(playtime)
-    subprocess.Popen("kill "+str(int(p.pid)+1) ,shell=True)
+    subprocess.Popen("kill "+str(int(p.pid)) ,shell=True)
     p = subprocess.Popen('echo',shell=True)
     #subprocess.Popen("khl-voice --token 1/MTExNDc=/XskugJgHwEKRz+RLipoqOw== --input tmp.mp3 --channel 7395538237423185")
     await msg.ctx.channel.send("复位完成")
