@@ -17,7 +17,6 @@ import re
 starttime=0
 pausetime=0
 playtime=0
-p = subprocess.Popen('echo',shell=True)
 
 logging.basicConfig(level='INFO')
 
