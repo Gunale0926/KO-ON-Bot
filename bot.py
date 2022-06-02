@@ -1,5 +1,6 @@
 import json
 import logging
+import signal
 import os
 from khl import Message, Bot
 import subprocess
