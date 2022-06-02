@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import signal
 from khl import Message, Bot
 import subprocess
 import random
@@ -313,7 +314,7 @@ async def listen(msg: Message, *args):
     global p
     global playtime
     global starttime
-    p.kill()
+    os.killpg(os.getpgid(p.pid), signal.SIGTERM)
     print(song_name)
     await msg.ctx.channel.send("即将播放请稍等")
     d = {"hlpretag": "<span class=\"s-fc7\">", "hlposttag": "</span>", "s": song_name, "type": "1", "offset": "0",
@@ -363,7 +364,7 @@ async def paus(msg: Message):
     #f.truncate();
     global p
     global pausetime
-    p.kill()
+    os.killpg(os.getpgid(p.pid), signal.SIGTERM)
     pausetime=time.time()
     #subprocess.Popen("khl-voice --token 1/MTExNDc=/XskugJgHwEKRz+RLipoqOw== --input tmp.mp3 --channel 7395538237423185")
     await msg.ctx.channel.send("已暂停播放")
@@ -411,7 +412,7 @@ async def nextmusic(msg: Message):
     global p
     global playtime
     global starttime
-    p.kill()
+    os.killpg(os.getpgid(p.pid), signal.SIGTERM)
     song_name=playlist[listid]
     await msg.ctx.channel.send("即将播放: "+song_name)
     d = {"hlpretag": "<span class=\"s-fc7\">", "hlposttag": "</span>", "s": song_name, "type": "1", "offset": "0",
@@ -497,7 +498,7 @@ async def reset(msg: Message):
     print(starttime)
     print(pausetime)
     print(playtime)
-    p.kill()
+    os.killpg(os.getpgid(p.pid), signal.SIGTERM)
     p = subprocess.Popen('echo',shell=True)
     #subprocess.Popen("khl-voice --token 1/MTExNDc=/XskugJgHwEKRz+RLipoqOw== --input tmp.mp3 --channel 7395538237423185")
     await msg.ctx.channel.send("复位完成")
