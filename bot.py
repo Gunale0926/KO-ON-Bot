@@ -15,7 +15,11 @@ from Cryptodome.Cipher import AES
 import psutil
 import re
 p = {}
-
+def kill():
+    try:
+        os.kill(p.pid+1, signal.SIGTERM)
+    except Exception as ex:
+        print(ex);
 logging.basicConfig(level='INFO')
 
 with open('config.json', 'r', encoding='utf-8') as f:
@@ -271,8 +275,7 @@ async def listen(msg: Message, *args):
     global p
     global playtime
     global starttime
-    if p!={}:
-        os.kill(p.pid+1, signal.SIGTERM)
+    kill()
     print(song_name)
     await msg.ctx.channel.send("即将播放请稍等")
     d = {"hlpretag": "<span class=\"s-fc7\">", "hlposttag": "</span>", "s": song_name, "type": "1", "offset": "0",
@@ -337,8 +340,7 @@ async def nextmusic(msg: Message):
     global p
     global playtime
     global starttime
-    if p!={}:
-        os.kill(p.pid+1, signal.SIGTERM)
+    kill()
     song_name=playlist[listid]
     await msg.ctx.channel.send("即将播放: "+song_name)
     d = {"hlpretag": "<span class=\"s-fc7\">", "hlposttag": "</span>", "s": song_name, "type": "1", "offset": "0",
