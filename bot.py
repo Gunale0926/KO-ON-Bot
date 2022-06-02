@@ -354,7 +354,7 @@ async def paus(msg: Message):
     global p
     print(p.pid)
     global pausetime
-    subprocess.Popen("kill "%p.pid ,shell=True) #通过pid来杀进程，在window上有效
+    #subprocess.Popen("kill "%p.pid ,shell=True) #通过pid来杀进程，在window上有效
     pausetime=time.time()
     #subprocess.Popen("khl-voice --token 1/MTExNDc=/XskugJgHwEKRz+RLipoqOw== --input tmp.mp3 --channel 7395538237423185")
     await msg.ctx.channel.send("已暂停播放")
@@ -371,9 +371,9 @@ async def conti(msg: Message):
     print(starttime)
     print(pausetime)
     print(playtime)
-    s='ffmpeg -re -nostats -ss '+str(playtime)+' -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:1234'
-    print(s)
-    p = subprocess.Popen(s,shell=True)
+    #s='ffmpeg -re -nostats -ss '+str(playtime)+' -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:1234'
+    #print(s)
+    #p = subprocess.Popen(s,shell=True)
     starttime=time.time()
     #subprocess.Popen("khl-voice --token 1/MTExNDc=/XskugJgHwEKRz+RLipoqOw== --input tmp.mp3 --channel 7395538237423185")
     await msg.ctx.channel.send("已开始播放")
@@ -392,8 +392,8 @@ async def reset(msg: Message):
     print(starttime)
     print(pausetime)
     print(playtime)
-    subprocess.Popen("kill %s"%p.pid ,shell=True)
-    p = subprocess.Popen('echo',shell=True)
+    #subprocess.Popen("kill %s"%p.pid ,shell=True)
+    #p = subprocess.Popen('echo',shell=True)
     #subprocess.Popen("khl-voice --token 1/MTExNDc=/XskugJgHwEKRz+RLipoqOw== --input tmp.mp3 --channel 7395538237423185")
     await msg.ctx.channel.send("复位完成")
 # everything done, go ahead now!
