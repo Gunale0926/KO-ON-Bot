@@ -17,6 +17,10 @@ import re
 starttime=0
 pausetime=0
 playtime=0
+ps()
+
+def ps():
+    global g
 
 logging.basicConfig(level='INFO')
 
