@@ -17,11 +17,7 @@ import re
 starttime=0
 pausetime=0
 playtime=0
-def psvar():
-    global g
-psvar()
-
-
+p = {}
 
 logging.basicConfig(level='INFO')
 
@@ -278,7 +274,8 @@ async def listen(msg: Message, *args):
     global p
     global playtime
     global starttime
-    os.killpg(os.getpgid(p.pid+1), signal.SIGTERM)
+    if p!={}:
+        os.killpg(os.getpgid(p.pid+1), signal.SIGTERM)
     print(song_name)
     await msg.ctx.channel.send("即将播放请稍等")
     d = {"hlpretag": "<span class=\"s-fc7\">", "hlposttag": "</span>", "s": song_name, "type": "1", "offset": "0",
