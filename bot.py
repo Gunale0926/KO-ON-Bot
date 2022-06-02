@@ -304,7 +304,7 @@ async def listen(msg: Message, *args):
     global p
     global playtime
     global starttime
-    subprocess.Popen("kill "%p.pid ,shell=True)
+    subprocess.Popen("kill %s"%p.pid ,shell=True)
     song_name=""
     for st in args:
         song_name=song_name+st+" "
@@ -392,7 +392,7 @@ async def reset(msg: Message):
     print(starttime)
     print(pausetime)
     print(playtime)
-    subprocess.Popen("kill "%p.pid ,shell=True)
+    subprocess.Popen("kill %s"%p.pid ,shell=True)
     p = subprocess.Popen('echo',shell=True)
     #subprocess.Popen("khl-voice --token 1/MTExNDc=/XskugJgHwEKRz+RLipoqOw== --input tmp.mp3 --channel 7395538237423185")
     await msg.ctx.channel.send("复位完成")
