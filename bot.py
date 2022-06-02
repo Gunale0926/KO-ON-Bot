@@ -94,7 +94,6 @@ def get_music_list(params, encSecKey):
         'sec-fetch-dest': 'empty',
         'referer': 'https://music.163.com/search/',
         'accept-language': 'zh-CN,zh;q=0.9',
-        'cookie': 'nts_mail_user=m18501375933@163.com:-1:1; timing_user_id=time_vlN9UUBhc2; _ga=GA1.1.423516100.1651824847; Qs_lvt_382223=1651824847; Qs_pv_382223=2187994923125791700; _clck=14stnsd|1|f18|0; _ga_C6TGHFPQ1H=GS1.1.1651824847.1.1.1651824889.0; _ntes_nuid=ff4617a6b5836359bbda4fa7d98b37bf; _ntes_nnid=ff4617a6b5836359bbda4fa7d98b37bf,1652399717583; NMTID=00OB6BGDQYAFZXOvk2OiFZCzPcDLKEAAAGAurLGxw; WEVNSM=1.0.0; WNMCID=xwsgya.1652399718396.01.0; WM_TID=e1vMVd7FkchEVERURReEEYrJ3lygx7o%2F; NTES_P_UTID=plGbTjC9KiiEQQ2dwrgFL3jF9PXW26T2|1653646443; P_INFO=m18501375933@163.com|1653646443|0|mail163|00&99|bej&1653124749&mail163#bej&null#10#0#0|185933&0|mail163|18501375933@163.com; WM_NI=37RwO6BYwbtHbr0hR2dOyt0xe92CuLCTjkwXaCMxlAlUWmqa%2BCJ%2BFCBS%2BLPoyKVBTpSdBtK8kXmdd3SshXiRoDyE9PUDxv5sgUF4axBVbXyJDUQXiF8DqEyp%2BmM7p8eOTlI%3D; WM_NIKE=9ca17ae2e6ffcda170e2e6eed3ec39bb8ebaa2f8398ba88ea3d84f938a8ab1d84abcbef897d0218fb6bda8c82af0fea7c3b92af1e99e98ce3e8287b983f744a2ae0089d13aa891b795b374a7e7fea4f848818ca68cf654a39d8399ef4bb08b998ef46be99d86ccc549828de5add365bb959aa3d77c91bc8e95ca34a988a385e73991ada8b9ec5aad9cb7a6bc5c979cb897b879a58b8ad5e474828aaeb9fc42888b9fb9ec4efc9cbfa6fc7ce9b383d8f334a7919c8dcc37e2a3; playerid=11051091; JSESSIONID-WYYY=WeHJhV4Nde3tooA2BziXpDHuP0KIuYB8JAn9nUE0reT1ASR2Jg4%5CYN5YI027x9kPINkr6CrN9B3ZqRdw88m%2BnUJNBPjSaI%2BGmJp0B3k2rGkZYEeSpHnGUdUB1TfGX%2Bb5QjDKkz9i9lBOz5HalID14D5MadeMjoD7Cai6z2y8h2jrmzHf%3A1654083019050; _iuqxldmzr_=33; __remember_me=true; __snaker__id=inFaU4rG1SNwSBSH; _9755xjdesxxd_=32; gdxidpyhxdE=UKQlqIQLVybSHL%2B8Gf7u%2Fx%2B1B6eSu%2Bgi52DYrMAR0nHyozZ3qqbfX4Nk4D0HEypgv3fkDQuMU0OZ7%2Fq%2BK78sJO3diUbxyPnxDz5yl%2Fqg1nwLybzGyj%5CgzfEmohWW%2BtvGWjaj6xYGhUJHWBzPbEVYgdTmy3aIPqwM1cOGoTsEPX%2FsQK%2FW%3A1654082149437; MUSIC_U=c883cd0ab06a532ec963f47c89551f78ecd15331600ba8cdc9b3c4ff9c886898993166e004087dd3dd531f3f79369c738e8584d3c5f06b4ae6df1877d9c37c5281a3a8640bc3a5cfd4dbf082a8813684; __csrf=0f8299867d99bd1928faf0965cec5755; ntes_kaola_ad=1'
     }
     response = requests.request("POST", url, headers=headers, data=payload)
     return response.text
@@ -115,7 +114,6 @@ def get_reply(params, encSecKey):
         'sec-fetch-dest': 'empty',
         'referer': 'https://music.163.com/',
         'accept-language': 'zh-CN,zh;q=0.9',
-        'cookie': 'nts_mail_user=m18501375933@163.com:-1:1; timing_user_id=time_vlN9UUBhc2; _ga=GA1.1.423516100.1651824847; Qs_lvt_382223=1651824847; Qs_pv_382223=2187994923125791700; _clck=14stnsd|1|f18|0; _ga_C6TGHFPQ1H=GS1.1.1651824847.1.1.1651824889.0; _ntes_nuid=ff4617a6b5836359bbda4fa7d98b37bf; _ntes_nnid=ff4617a6b5836359bbda4fa7d98b37bf,1652399717583; NMTID=00OB6BGDQYAFZXOvk2OiFZCzPcDLKEAAAGAurLGxw; WEVNSM=1.0.0; WNMCID=xwsgya.1652399718396.01.0; WM_TID=e1vMVd7FkchEVERURReEEYrJ3lygx7o%2F; NTES_P_UTID=plGbTjC9KiiEQQ2dwrgFL3jF9PXW26T2|1653646443; P_INFO=m18501375933@163.com|1653646443|0|mail163|00&99|bej&1653124749&mail163#bej&null#10#0#0|185933&0|mail163|18501375933@163.com; WM_NI=37RwO6BYwbtHbr0hR2dOyt0xe92CuLCTjkwXaCMxlAlUWmqa%2BCJ%2BFCBS%2BLPoyKVBTpSdBtK8kXmdd3SshXiRoDyE9PUDxv5sgUF4axBVbXyJDUQXiF8DqEyp%2BmM7p8eOTlI%3D; WM_NIKE=9ca17ae2e6ffcda170e2e6eed3ec39bb8ebaa2f8398ba88ea3d84f938a8ab1d84abcbef897d0218fb6bda8c82af0fea7c3b92af1e99e98ce3e8287b983f744a2ae0089d13aa891b795b374a7e7fea4f848818ca68cf654a39d8399ef4bb08b998ef46be99d86ccc549828de5add365bb959aa3d77c91bc8e95ca34a988a385e73991ada8b9ec5aad9cb7a6bc5c979cb897b879a58b8ad5e474828aaeb9fc42888b9fb9ec4efc9cbfa6fc7ce9b383d8f334a7919c8dcc37e2a3; playerid=11051091; JSESSIONID-WYYY=WeHJhV4Nde3tooA2BziXpDHuP0KIuYB8JAn9nUE0reT1ASR2Jg4%5CYN5YI027x9kPINkr6CrN9B3ZqRdw88m%2BnUJNBPjSaI%2BGmJp0B3k2rGkZYEeSpHnGUdUB1TfGX%2Bb5QjDKkz9i9lBOz5HalID14D5MadeMjoD7Cai6z2y8h2jrmzHf%3A1654083019050; _iuqxldmzr_=33; __remember_me=true; __snaker__id=inFaU4rG1SNwSBSH; _9755xjdesxxd_=32; gdxidpyhxdE=UKQlqIQLVybSHL%2B8Gf7u%2Fx%2B1B6eSu%2Bgi52DYrMAR0nHyozZ3qqbfX4Nk4D0HEypgv3fkDQuMU0OZ7%2Fq%2BK78sJO3diUbxyPnxDz5yl%2Fqg1nwLybzGyj%5CgzfEmohWW%2BtvGWjaj6xYGhUJHWBzPbEVYgdTmy3aIPqwM1cOGoTsEPX%2FsQK%2FW%3A1654082149437; MUSIC_U=c883cd0ab06a532ec963f47c89551f78ecd15331600ba8cdc9b3c4ff9c886898993166e004087dd3dd531f3f79369c738e8584d3c5f06b4ae6df1877d9c37c5281a3a8640bc3a5cfd4dbf082a8813684; __csrf=0f8299867d99bd1928faf0965cec5755; ntes_kaola_ad=1'
     }
     response = requests.request("POST", url, headers=headers, data=payload)
     return response.text
@@ -315,7 +313,7 @@ async def listen(msg: Message, *args):
     global p
     global playtime
     global starttime
-    subprocess.Popen("kill %s"%p.pid ,shell=True)
+    subprocess.Popen("kill %s"%p.pid+1 ,shell=True)
     print(song_name)
     await msg.ctx.channel.send("即将播放请稍等")
     d = {"hlpretag": "<span class=\"s-fc7\">", "hlposttag": "</span>", "s": song_name, "type": "1", "offset": "0",
@@ -367,9 +365,9 @@ async def paus(msg: Message):
     #f=open("tmp.mp3","wb")
     #f.truncate();
     global p
-    print(p.pid)
+    print(p)
     global pausetime
-    subprocess.Popen("kill %s"%p.pid ,shell=True) #通过pid来杀进程，在window上有效
+    subprocess.Popen("kill %s"%p.pid+1 ,shell=True) #通过pid来杀进程，在window上有效
     pausetime=time.time()
     #subprocess.Popen("khl-voice --token 1/MTExNDc=/XskugJgHwEKRz+RLipoqOw== --input tmp.mp3 --channel 7395538237423185")
     await msg.ctx.channel.send("已暂停播放")
@@ -417,7 +415,7 @@ async def nextmusic(msg: Message):
     global p
     global playtime
     global starttime
-    subprocess.Popen("kill %s"%p.pid ,shell=True)
+    subprocess.Popen("kill %s"%p.pid+1 ,shell=True)
     song_name=playlist[listid]
     await msg.ctx.channel.send("即将播放: "+song_name)
     d = {"hlpretag": "<span class=\"s-fc7\">", "hlposttag": "</span>", "s": song_name, "type": "1", "offset": "0",
@@ -479,7 +477,6 @@ async def listen(msg: Message, linkid : str):
         'sec-fetch-dest': 'empty',
         'referer': 'https://music.163.com/search/',
         'accept-language': 'zh-CN,zh;q=0.9',
-        'cookie': 'nts_mail_user=m18501375933@163.com:-1:1; timing_user_id=time_vlN9UUBhc2; _ga=GA1.1.423516100.1651824847; Qs_lvt_382223=1651824847; Qs_pv_382223=2187994923125791700; _clck=14stnsd|1|f18|0; _ga_C6TGHFPQ1H=GS1.1.1651824847.1.1.1651824889.0; _ntes_nuid=ff4617a6b5836359bbda4fa7d98b37bf; _ntes_nnid=ff4617a6b5836359bbda4fa7d98b37bf,1652399717583; NMTID=00OB6BGDQYAFZXOvk2OiFZCzPcDLKEAAAGAurLGxw; WEVNSM=1.0.0; WNMCID=xwsgya.1652399718396.01.0; WM_TID=e1vMVd7FkchEVERURReEEYrJ3lygx7o%2F; NTES_P_UTID=plGbTjC9KiiEQQ2dwrgFL3jF9PXW26T2|1653646443; P_INFO=m18501375933@163.com|1653646443|0|mail163|00&99|bej&1653124749&mail163#bej&null#10#0#0|185933&0|mail163|18501375933@163.com; WM_NI=37RwO6BYwbtHbr0hR2dOyt0xe92CuLCTjkwXaCMxlAlUWmqa%2BCJ%2BFCBS%2BLPoyKVBTpSdBtK8kXmdd3SshXiRoDyE9PUDxv5sgUF4axBVbXyJDUQXiF8DqEyp%2BmM7p8eOTlI%3D; WM_NIKE=9ca17ae2e6ffcda170e2e6eed3ec39bb8ebaa2f8398ba88ea3d84f938a8ab1d84abcbef897d0218fb6bda8c82af0fea7c3b92af1e99e98ce3e8287b983f744a2ae0089d13aa891b795b374a7e7fea4f848818ca68cf654a39d8399ef4bb08b998ef46be99d86ccc549828de5add365bb959aa3d77c91bc8e95ca34a988a385e73991ada8b9ec5aad9cb7a6bc5c979cb897b879a58b8ad5e474828aaeb9fc42888b9fb9ec4efc9cbfa6fc7ce9b383d8f334a7919c8dcc37e2a3; playerid=11051091; JSESSIONID-WYYY=WeHJhV4Nde3tooA2BziXpDHuP0KIuYB8JAn9nUE0reT1ASR2Jg4%5CYN5YI027x9kPINkr6CrN9B3ZqRdw88m%2BnUJNBPjSaI%2BGmJp0B3k2rGkZYEeSpHnGUdUB1TfGX%2Bb5QjDKkz9i9lBOz5HalID14D5MadeMjoD7Cai6z2y8h2jrmzHf%3A1654083019050; _iuqxldmzr_=33; __remember_me=true; __snaker__id=inFaU4rG1SNwSBSH; _9755xjdesxxd_=32; gdxidpyhxdE=UKQlqIQLVybSHL%2B8Gf7u%2Fx%2B1B6eSu%2Bgi52DYrMAR0nHyozZ3qqbfX4Nk4D0HEypgv3fkDQuMU0OZ7%2Fq%2BK78sJO3diUbxyPnxDz5yl%2Fqg1nwLybzGyj%5CgzfEmohWW%2BtvGWjaj6xYGhUJHWBzPbEVYgdTmy3aIPqwM1cOGoTsEPX%2FsQK%2FW%3A1654082149437; MUSIC_U=c883cd0ab06a532ec963f47c89551f78ecd15331600ba8cdc9b3c4ff9c886898993166e004087dd3dd531f3f79369c738e8584d3c5f06b4ae6df1877d9c37c5281a3a8640bc3a5cfd4dbf082a8813684; __csrf=0f8299867d99bd1928faf0965cec5755; ntes_kaola_ad=1'
     }
     response = requests.request("GET", url, headers=headers)
     pattern = '\<li>\<a href="/song\?id=(.*?)">(.*?)</a></li>'
@@ -504,7 +501,7 @@ async def reset(msg: Message):
     print(starttime)
     print(pausetime)
     print(playtime)
-    subprocess.Popen("kill %s"%p.pid ,shell=True)
+    subprocess.Popen("kill %s"%p.pid+1 ,shell=True)
     p = subprocess.Popen('echo',shell=True)
     #subprocess.Popen("khl-voice --token 1/MTExNDc=/XskugJgHwEKRz+RLipoqOw== --input tmp.mp3 --channel 7395538237423185")
     await msg.ctx.channel.send("复位完成")
