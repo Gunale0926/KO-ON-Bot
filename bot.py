@@ -304,7 +304,7 @@ async def listen(msg: Message, *args):
     global p
     global playtime
     global starttime
-    subprocess.Popen("kill %s"%p.pid ,shell=True)
+    #subprocess.Popen("kill %s"%p.pid ,shell=True)
     song_name=""
     for st in args:
         song_name=song_name+st+" "
