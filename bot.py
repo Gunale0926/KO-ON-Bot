@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import signal
 from khl import Message, Bot
 import subprocess
 import random
@@ -117,43 +118,6 @@ def get_reply(params, encSecKey):
     }
     response = requests.request("POST", url, headers=headers, data=payload)
     return response.text
-
-
-
-
-
-@bot.command(name='echo')
-async def echo(msg: Message,*args):
-    cm=[
-  {
-    "type": "card",
-    "theme": "secondary",
-    "size": "lg",
-    "modules": [
-      {
-        "type": "section",
-        "text": {
-          "type": "plain-text",
-          "content": ''.join(args)
-        }
-      }
-    ]
-  }
-]
-    await msg.ctx.channel.send(cm)
-
-@bot.command(name='roll')
-async def roll(msg: Message, *args):
-    if len(args)>=2:
-        t_min=int(args[0])
-        t_max=int(args[1])
-        n=1
-        if len(args)==3:
-            n=int(args[2])
-        result = [random.randint(t_min, t_max) for i in range(n)]
-        await msg.reply(f'you got: {result}')
-    else:
-        await msg.reply(cm)
 
 @bot.command(name='search')
 async def search(msg: Message, song_name: str):
@@ -301,9 +265,6 @@ async def getmusicfromname(msg: Message, *args):
                 await msg.ctx.channel.send("该首歌曲解析失败，可能是因为歌曲格式问题")
     else:
         await msg.ctx.channel.send("很抱歉，未能搜索到相关歌曲信息")
-
-
-
 
 @bot.command(name='点歌')
 async def listen(msg: Message, *args):
