@@ -314,6 +314,7 @@ async def listen(msg: Message, *args):
     global playtime
     global starttime
     p.terminate()
+    p.wait()
     print(song_name)
     await msg.ctx.channel.send("即将播放请稍等")
     d = {"hlpretag": "<span class=\"s-fc7\">", "hlposttag": "</span>", "s": song_name, "type": "1", "offset": "0",
@@ -364,6 +365,7 @@ async def paus(msg: Message):
     global p
     global pausetime
     p.terminate()
+    p.wait()
     pausetime=time.time()
     #subprocess.Popen("khl-voice --token 1/MTExNDc=/XskugJgHwEKRz+RLipoqOw== --input tmp.mp3 --channel 7395538237423185")
     await msg.ctx.channel.send("已暂停播放")
@@ -412,6 +414,7 @@ async def nextmusic(msg: Message):
     global playtime
     global starttime
     p.terminate()
+    p.wait()
     song_name=playlist[listid]
     await msg.ctx.channel.send("即将播放: "+song_name)
     d = {"hlpretag": "<span class=\"s-fc7\">", "hlposttag": "</span>", "s": song_name, "type": "1", "offset": "0",
@@ -498,6 +501,7 @@ async def reset(msg: Message):
     print(pausetime)
     print(playtime)
     p.terminate()
+    p.wait()
     p = subprocess.Popen('echo',shell=True)
     #subprocess.Popen("khl-voice --token 1/MTExNDc=/XskugJgHwEKRz+RLipoqOw== --input tmp.mp3 --channel 7395538237423185")
     await msg.ctx.channel.send("复位完成")
