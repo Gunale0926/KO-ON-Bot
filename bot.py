@@ -14,9 +14,6 @@ import requests
 from Cryptodome.Cipher import AES
 import psutil
 import re
-starttime=0
-pausetime=0
-playtime=0
 p = {}
 
 logging.basicConfig(level='INFO')
@@ -316,39 +313,6 @@ async def listen(msg: Message, *args):
     else:
         await msg.ctx.channel.send("ERROR 稍后重试")
 
-
-
-
-@bot.command(name='暂停播放')
-async def paus(msg: Message):
-    #f=open("tmp.mp3","wb")
-    #f.truncate();
-    global p
-    global pausetime
-    os.killpg(os.getpgid(p.pid+1), signal.SIGTERM)
-    pausetime=time.time()
-    #subprocess.Popen("khl-voice --token 1/MTExNDc=/XskugJgHwEKRz+RLipoqOw== --input tmp.mp3 --channel 7395538237423185")
-    await msg.ctx.channel.send("已暂停播放")
-
-@bot.command(name='继续播放')
-async def conti(msg: Message):
-    #f=open("tmp.mp3","wb")
-    #f.truncate();
-    global playtime
-    global starttime
-    global pausetime
-    global p
-    playtime=playtime+pausetime-starttime
-    print(starttime)
-    print(pausetime)
-    print(playtime)
-    s='ffmpeg -re -nostats -ss '+str(playtime)+' -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:1234'
-    print(s)
-    p = subprocess.Popen(s,shell=True)
-    starttime=time.time()
-    #subprocess.Popen("khl-voice --token 1/MTExNDc=/XskugJgHwEKRz+RLipoqOw== --input tmp.mp3 --channel 7395538237423185")
-    await msg.ctx.channel.send("已开始播放")
-
 @bot.command(name='添加歌曲')
 async def addmusic(msg: Message,*args):
     #f=open("tmp.mp3","wb")
@@ -422,8 +386,6 @@ async def nextmusic(msg: Message):
 async def listen(msg: Message, linkid : str):
     global playlist
     url = "https://music.163.com/playlist/?id="+linkid
-
-
     headers = {
         'authority': 'music.163.com',
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.135 Safari/537.36',
@@ -445,23 +407,5 @@ async def listen(msg: Message, linkid : str):
         playlist.append(item[1])
     await msg.ctx.channel.send("导入完成")
 
-@bot.command(name='复位')
-async def reset(msg: Message):
-    #f=open("tmp.mp3","wb")
-    #f.truncate();
-    global playtime
-    global starttime
-    global pausetime
-    global p
-    playtime=0
-    pausetime=0
-    starttime=0
-    print(starttime)
-    print(pausetime)
-    print(playtime)
-    os.killpg(os.getpgid(p.pid+1), signal.SIGTERM)
-    p = subprocess.Popen('echo',shell=True)
-    #subprocess.Popen("khl-voice --token 1/MTExNDc=/XskugJgHwEKRz+RLipoqOw== --input tmp.mp3 --channel 7395538237423185")
-    await msg.ctx.channel.send("复位完成")
 # everything done, go ahead now!
 bot.run()
