@@ -313,7 +313,7 @@ async def listen(msg: Message, *args):
     global p
     global playtime
     global starttime
-    subprocess.Popen("kill %s"%p.pid+1 ,shell=True)
+    subprocess.Popen("kill %d"int(%p.pid)+1 ,shell=True)
     print(song_name)
     await msg.ctx.channel.send("即将播放请稍等")
     d = {"hlpretag": "<span class=\"s-fc7\">", "hlposttag": "</span>", "s": song_name, "type": "1", "offset": "0",
@@ -367,7 +367,7 @@ async def paus(msg: Message):
     global p
     print(p)
     global pausetime
-    subprocess.Popen("kill %s"%p.pid+1 ,shell=True) #通过pid来杀进程，在window上有效
+    subprocess.Popen("kill %d"int(%p.pid)+1 ,shell=True) #通过pid来杀进程，在window上有效
     pausetime=time.time()
     #subprocess.Popen("khl-voice --token 1/MTExNDc=/XskugJgHwEKRz+RLipoqOw== --input tmp.mp3 --channel 7395538237423185")
     await msg.ctx.channel.send("已暂停播放")
@@ -415,7 +415,7 @@ async def nextmusic(msg: Message):
     global p
     global playtime
     global starttime
-    subprocess.Popen("kill %s"%p.pid+1 ,shell=True)
+    subprocess.Popen("kill %d"int(%p.pid)+1 ,shell=True)
     song_name=playlist[listid]
     await msg.ctx.channel.send("即将播放: "+song_name)
     d = {"hlpretag": "<span class=\"s-fc7\">", "hlposttag": "</span>", "s": song_name, "type": "1", "offset": "0",
@@ -501,7 +501,7 @@ async def reset(msg: Message):
     print(starttime)
     print(pausetime)
     print(playtime)
-    subprocess.Popen("kill %s"%p.pid+1 ,shell=True)
+    subprocess.Popen("kill %d"int(%p.pid)+1 ,shell=True)
     p = subprocess.Popen('echo',shell=True)
     #subprocess.Popen("khl-voice --token 1/MTExNDc=/XskugJgHwEKRz+RLipoqOw== --input tmp.mp3 --channel 7395538237423185")
     await msg.ctx.channel.send("复位完成")
