@@ -23,7 +23,7 @@ async def get_gateway(channel_id: str) -> str:
 
 async def connect_ws():
     global ws_clients
-    gateway = await get_gateway('8143243977723496')
+    gateway = await get_gateway(config["voiceid"])
     #print(gateway)
     async with aiohttp.ClientSession() as session:
         async with session.ws_connect(gateway) as ws:
