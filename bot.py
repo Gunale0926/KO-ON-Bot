@@ -500,6 +500,7 @@ async def update_played_time_and_change_music():
                 else:
                     playtime=0
                     playlist.pop(1)
+                    listid-=1
                     LOCK = False
                     return None
 
