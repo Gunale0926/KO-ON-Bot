@@ -14,13 +14,26 @@ import requests
 from Cryptodome.Cipher import AES
 import psutil
 import re
+import eyed3
+LOCK = False
+playtime=0
+duration=0
 p = {}
+cookie = '_ntes_nnid=8ff9c3f22e64b3dbb847b71650371a61,1647935810581; _ntes_nuid=8ff9c3f22e64b3dbb847b71650371a61; NMTID=00OrOyfNUVuawDZoEZsnO6d58RRT0EAAAF_sKDmSw; WEVNSM=1.0.0; WNMCID=orzlno.1647935810851.01.0; WM_TID=AOWQjWwClPNFFUQUAQZuq54BjRS8wIPQ; lang=zh; _iuqxldmzr_=32; ntes_kaola_ad=1; __remember_me=true; MUSIC_U=6c5a3400f94b182eafbdf3ac438bfe4f11b09b8614cc41cce63af743c922f06fd1f884fb69b702f873523d0e5593273ae5cf297c1e51399c235d3316c5d2f10cee0ec6f4ed39863ca0d2166338885bd7; __csrf=f807bc54ad3c2d6833514a58e4c3aa34; WM_NI=CKXjKBtGq7FBVHKZcvUCgFoVLJWJgJviKCpTqFT9gPsP%2FpO9NrJ2rmA6P%2BmklMLq%2BDMQSefW8lZ0xtn9iWXmD82WvuR9vi7iu0YYBypgD%2FLxj%2FUHCFtmK1cW%2BGTcG1z%2BSkg%3D; WM_NIKE=9ca17ae2e6ffcda170e2e6eeb7c77092b38689d074f29a8ea3c84a828b9b86c85bacb586a7eb7489ece18fef2af0fea7c3b92a8195988bca4ab899bfd8c54a969885bbe27e979da9a7ee5e909699abe642b6b785a4f360b39a9cdae65cb190e191ce338eae86d3f16783eaa0ccf061b0938492aa508f8f9d86e55dfcb496d1fb80aee7a7b8db6788e8feb8f57f92e7ba8ab663b7f097bac173b4b98cd0cf74aaf19ba9c24eb8b385d2e25de9999c84c63bbaf59d8ce637e2a3; JSESSIONID-WYYY=VvhIWG%2FjjAadI8hnjXusdZABMHY%2B5jsPhwTXoBRPXihNAGPn6U1s39yFvgfI8KdCdxf8JBj9Kd5302gag%5CfqHxIMvw7lWdEhahEYeQ%5C%5CrAb8w1%5Cp0ZgK0ZEssTm%5CKVRtNH7%2BaH%5CVbzIxV%2B%2Bb%2B9e3dfFUn4%5Cu9wm8HlNsWrS7N5YQ%2FhU1%3A1654179341983'
 def kill():
     try:
         os.kill(p.pid+1, signal.SIGTERM)
-    except Exception as ex:
-        print(ex);
-logging.basicConfig(level='INFO')
+    except Exception as e:
+        pass
+
+def get_duration_mp3(file_path):
+    """
+    获取mp3音频文件时长
+    :param file_path:
+    :return:
+    """
+    mp3Info = eyed3.load(file_path)
+    return mp3Info.info.time_secs
 
 with open('config.json', 'r', encoding='utf-8') as f:
     config = json.load(f)
@@ -96,6 +109,7 @@ def get_music_list(params, encSecKey):
         'sec-fetch-dest': 'empty',
         'referer': 'https://music.163.com/search/',
         'accept-language': 'zh-CN,zh;q=0.9',
+        'cookie': cookie
     }
     response = requests.request("POST", url, headers=headers, data=payload)
     return response.text
@@ -116,25 +130,20 @@ def get_reply(params, encSecKey):
         'sec-fetch-dest': 'empty',
         'referer': 'https://music.163.com/',
         'accept-language': 'zh-CN,zh;q=0.9',
+        'cookie': cookie
     }
     response = requests.request("POST", url, headers=headers, data=payload)
     return response.text
 
 @bot.command(name='search')
 async def search(msg: Message, song_name: str):
-
     d = {"hlpretag": "<span class=\"s-fc7\">", "hlposttag": "</span>", "s": song_name, "type": "1", "offset": "0",
          "total": "true", "limit": "30", "csrf_token": ""}
     d = json.dumps(d)
-
     random_param =get_random()
-
     param =get_final_param(d, random_param)
-
     song_list =get_music_list(param['params'], param['encSecKey'])
-
     fmsg=""
-
     if len(song_list) > 0:
         song_list = json.loads(song_list)['result']['songs']
         for i, item in enumerate(song_list):
@@ -147,7 +156,6 @@ async def search(msg: Message, song_name: str):
 
 @bot.command(name='getmusic-id')
 async def getmusicfromid(msg: Message, song_id: str):
-
     d = {"ids": "[" + song_id + "]", "level": "standard", "encodeType": "","csrf_token": ""}
     d = json.dumps(d)
     random_param =get_random()
@@ -156,7 +164,7 @@ async def getmusicfromid(msg: Message, song_id: str):
     if len(song_info) > 0:
         song_info = json.loads(song_info)
         song_url = json.dumps(song_info['data'][0]['url'], ensure_ascii=False)
-        print(song_url)
+        #print(song_url)
         cm=[
   {
     "type": "card",
@@ -183,7 +191,7 @@ async def getmusicfromname(msg: Message, *args):
     song_name=""
     for st in args:
         song_name=song_name+st+" "
-    print(song_name)
+    #print(song_name)
     d = {"hlpretag": "<span class=\"s-fc7\">", "hlposttag": "</span>", "s": song_name, "type": "1", "offset": "0",
          "total": "true", "limit": "30", "csrf_token": ""}
     d = json.dumps(d)
@@ -195,7 +203,7 @@ async def getmusicfromname(msg: Message, *args):
         song_list = json.loads(song_list)['result']['songs']
         for i, item in enumerate(song_list):
             item = json.dumps(item)
-            print(str(i) + "：" + str(json.loads(str(item))['name']))
+            #print(str(i) + "：" + str(json.loads(str(item))['name']))
             d = {"ids": "[" + str(json.loads(str(item))['id']) + "]", "level": "standard", "encodeType": "",
                  "csrf_token": ""}
             d = json.dumps(d)
@@ -206,9 +214,9 @@ async def getmusicfromname(msg: Message, *args):
                 if song_info['data'][0]['code']==-110:
                     continue
                 else:
-                    print(str(song_info))
+                    #print(str(song_info))
                     song_url = json.dumps(song_info['data'][0]['url'], ensure_ascii=False)
-                    print(song_url)
+                    #print(song_url)
                     cm=[
   {
     "type": "card",
@@ -258,7 +266,7 @@ async def getmusicfromname(msg: Message, *args):
   }
 ]
 
-                    print(cm)
+                    #print(cm)
                     await msg.ctx.channel.send(cm)
                     break
 
@@ -276,7 +284,7 @@ async def listen(msg: Message, *args):
     global playtime
     global starttime
     kill()
-    print(song_name)
+    #print(song_name)
     await msg.ctx.channel.send("即将播放请稍等")
     d = {"hlpretag": "<span class=\"s-fc7\">", "hlposttag": "</span>", "s": song_name, "type": "1", "offset": "0",
          "total": "true", "limit": "30", "csrf_token": ""}
@@ -289,7 +297,7 @@ async def listen(msg: Message, *args):
             song_list = json.loads(song_list)['result']['songs']
             for i, item in enumerate(song_list):
                 item = json.dumps(item)
-                print(str(i) + "：" + str(json.loads(str(item))['name']))
+                #print(str(i) + "：" + str(json.loads(str(item))['name']))
                 d = {"ids": "[" + str(json.loads(str(item))['id']) + "]", "level": "standard", "encodeType": "",
                  "csrf_token": ""}
                 d = json.dumps(d)
@@ -306,6 +314,7 @@ async def listen(msg: Message, *args):
                         open("tmp.mp3","wb").write(musicfile.content)
                         starttime=time.time()
                         playtime=0
+                        duration=get_duration_mp3("tmp.mp3")
                         p = subprocess.Popen('ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:1234',shell=True)
                         break
 
@@ -328,7 +337,7 @@ async def addmusic(msg: Message,*args):
     playlist.append(song_name)
 
     await msg.ctx.channel.send("已添加成功")
-    print(playlist)
+    #print(playlist)
 
 @bot.command(name='下一首')
 async def nextmusic(msg: Message):
@@ -362,18 +371,18 @@ async def nextmusic(msg: Message):
                 param = get_final_param(d, random_param)
                 song_info = get_reply(param['params'], param['encSecKey'])
                 if len(song_info) > 0:
-
                     song_info = json.loads(song_info)
                     if song_info['data'][0]['code']==-110:
                         continue
                     else:
-                        print(str(song_info))
+                        #print(str(song_info))
                         song_url = json.dumps(song_info['data'][0]['url'], ensure_ascii=False)
-                        print(song_url)
+                        #print(song_url)
                         musicfile=requests.get(eval(song_url))
                         open("tmp.mp3","wb").write(musicfile.content)
                         starttime=time.time()
                         playtime=0
+                        duration=get_duration_mp3("tmp.mp3")
                         p = subprocess.Popen('ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:1234',shell=True)
                         break
 
@@ -400,15 +409,98 @@ async def listen(msg: Message, linkid : str):
         'sec-fetch-dest': 'empty',
         'referer': 'https://music.163.com/search/',
         'accept-language': 'zh-CN,zh;q=0.9',
+        'cookie': cookie
     }
     response = requests.request("GET", url, headers=headers)
     pattern = '\<li>\<a href="/song\?id=(.*?)">(.*?)</a></li>'
     matches = re.findall(pattern,response.text)
-    print(matches)
-
+    #print(matches)
     for item in matches:
         playlist.append(item[1])
     await msg.ctx.channel.send("导入完成")
 
-# everything done, go ahead now!
+@bot.command(name='清空歌单')
+async def reset(msg: Message):
+    global playlist
+    playlist=[""]
+    await msg.ctx.channel.send("清空完成")
+
+@bot.command(name='展示歌单')
+async def prtlist(msg: Message):
+    global playlist
+    txt=''
+    for item in playlist:
+        if item != '':
+            txt += item+"\n"
+    await msg.ctx.channel.send(txt)
+
+@bot.task.add_interval(seconds=5)
+async def update_played_time_and_change_music():
+    global playtime
+    global playlist
+    global listid
+    global LOCK
+    global duration
+    if LOCK:
+        return None
+    else:
+        LOCK = True
+        if len(playlist) == 0:
+            PLAYED = 0
+            LOCK = False
+            return None
+        else:
+            if playtime == 0:
+                listid=listid+1
+                if listid==len(playlist):
+                    listid=0
+                kill()
+                song_name=playlist[listid]
+                if song_name == '':
+                    LOCK = False
+                    return;
+                d = {"hlpretag": "<span class=\"s-fc7\">", "hlposttag": "</span>", "s": song_name, "type": "1", "offset": "0","total": "true", "limit": "30", "csrf_token": ""}
+                d = json.dumps(d)
+                random_param = get_random()
+                param = get_final_param(d, random_param)
+                song_list = get_music_list(param['params'], param['encSecKey'])
+                if len(str(json.loads(song_list))) >0:
+                    if json.loads(song_list)['result']['songCount'] > 0:
+                        song_list = json.loads(song_list)['result']['songs']
+                        for i, item in enumerate(song_list):
+                            item = json.dumps(item)
+                            d = {"ids": "[" + str(json.loads(str(item))['id']) + "]", "level": "standard", "encodeType": "","csrf_token": ""}
+                            d = json.dumps(d)
+                            param = get_final_param(d, random_param)
+                            song_info = get_reply(param['params'], param['encSecKey'])
+                            if len(song_info) > 0:
+                                song_info = json.loads(song_info)
+                                if song_info['data'][0]['code']==-110:
+                                    continue
+                                else:
+                                    song_url = json.dumps(song_info['data'][0]['url'], ensure_ascii=False)
+                                    print(song_url)
+                                    musicfile=requests.get(eval(song_url))
+                                    open("tmp.mp3","wb").write(musicfile.content)
+                                    starttime=time.time()
+                                    playtime=0
+                                    duration=get_duration_mp3("tmp.mp3")
+                                    p = subprocess.Popen('ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:1234',shell=True,stdout=subprocess.PIPE)
+                                    break
+                else:
+                    listid=listid-1
+                playtime+=5
+                LOCK = False
+                return None
+            else:
+                if playtime + 5 < duration:
+                    playtime += 5
+                    LOCK = False
+                    return None
+                else:
+                    playtime=0
+                    del playlist[1]
+                    LOCK = False
+                    return None
+
 bot.run()
