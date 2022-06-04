@@ -139,9 +139,8 @@ async def nextmusic(msg: Message):
     global playtime
     global LOCK
     flag=True
-    user=msg.author
-    for user in user.roles:
-        if user==config['skiper']:
+    for role in msg.author.roles:
+        if role == config['skiper']:
             flag=False
     if flag:
         await msg.ctx.channel.send("无权限")
