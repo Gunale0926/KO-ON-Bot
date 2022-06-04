@@ -277,7 +277,7 @@ async def update_played_time_and_change_music():
                                     playtime = 0
                                     duration = get_duration_mp3("tmp.mp3")
                                     p = subprocess.Popen(
-                                            'ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:1234',
+                                            'ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'+config["port"],
                                             shell=True,
                                             stdout=subprocess.PIPE,
                                             )
