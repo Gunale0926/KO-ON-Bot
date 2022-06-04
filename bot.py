@@ -142,8 +142,7 @@ async def nextmusic(msg: Message):
     global playtime
     global LOCK
     flag=True
-    user = msg.author
-    for role in user.roles
+    for role in msg.author.roles
         if role.has_permission(1):
             flag=False
             break
