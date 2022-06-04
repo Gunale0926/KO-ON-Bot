@@ -264,7 +264,7 @@ async def update_played_time_and_change_music():
                                     try:
                                         p.kill()
                                         p.terminate()
-                                    except:
+                                    except Exception as e:
                                         pass
                                     p = subprocess.Popen(
                                             'ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:1234',
