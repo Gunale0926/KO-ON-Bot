@@ -201,6 +201,7 @@ async def update_played_time_and_change_music():
     global playlist
     global LOCK
     global duration
+    global p
     if LOCK:
         return None
     else:
@@ -210,7 +211,6 @@ async def update_played_time_and_change_music():
             return None
         else:
             if playtime == 0:
-                kill()
                 song_name = playlist[0]['name']
                 if song_name == "":
                     LOCK = False
@@ -261,11 +261,6 @@ async def update_played_time_and_change_music():
                                     open("tmp.mp3", "wb").write(musicfile.content)
                                     playtime = 0
                                     duration = get_duration_mp3("tmp.mp3")
-                                    try:
-                                        p.kill()
-                                        p.terminate()
-                                    except Exception as e:
-                                        pass
                                     p = subprocess.Popen(
                                             'ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:1234',
                                             shell=True,
