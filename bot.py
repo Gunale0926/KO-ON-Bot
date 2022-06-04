@@ -22,9 +22,9 @@ cookie = "_ntes_nnid=8ff9c3f22e64b3dbb847b71650371a61,1647935810581; _ntes_nuid=
 
 
 def kill():
-    global p;
+    global p
     try:
-        os.kill(p.pid + 1, signal.SIGTERM)
+        os.killgp(os.getpgid(pid + 1), signal.SIGTERM)
     except:
         pass
 
