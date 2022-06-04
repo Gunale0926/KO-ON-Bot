@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import signal
-from khl import Message, Bot
+from khl import Message, Bot, Role
 from khl.card import CardMessage, Card, Module, Element, Types
 import subprocess
 import random
