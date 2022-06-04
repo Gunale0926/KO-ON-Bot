@@ -140,7 +140,8 @@ async def nextmusic(msg: Message):
     global LOCK
     flag=True
     for role in msg.author.roles:
-        if role == config['skiper']:
+        print(role)
+        if role == config["skiper"]:
             flag=False
     if flag:
         await msg.ctx.channel.send("无权限")
