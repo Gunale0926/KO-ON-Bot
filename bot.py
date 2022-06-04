@@ -210,6 +210,72 @@ async def prtlist(msg: Message):
     await msg.ctx.channel.send(cm)
 
 
+@bot.command(name="帮助")
+async def nextmusic(msg: Message):
+    cm=[
+  {
+    "type": "card",
+    "theme": "secondary",
+    "size": "lg",
+    "modules": [
+      {
+        "type": "header",
+        "text": {
+          "type": "plain-text",
+          "content": "点歌机操作指南"
+        }
+      },
+      {
+        "type": "divider"
+      },
+      {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "**1.  点歌   +    歌名**"
+        }
+      },
+      {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "功能:    将歌曲加到播放队列中\ntips:\n歌名中如果有英文引号等特殊字符，需要将歌名用英文引号括起来\n例如  **点歌 \"Rrhar'il\"**\n如果需要指定歌曲版本播放，可以在歌名后添加歌手\n例如  **点歌 勇敢勇敢-黄勇**"
+        }
+      },
+      {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "**2.  下一首**"
+        }
+      },
+      {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "功能:    跳过当前正播放的歌曲，仅限**有特定角色的用户**使用"
+        }
+      },
+      {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "**3.  歌单**"
+        }
+      },
+      {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "功能:    展示播放队列内剩余的歌曲"
+        }
+      }
+    ]
+  }
+]
+    await msg.ctx.channel.send(cm)
+
+
 @bot.task.add_interval(seconds=5)
 async def update_played_time_and_change_music():
     global playtime
