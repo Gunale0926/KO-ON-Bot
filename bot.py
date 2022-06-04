@@ -210,7 +210,7 @@ async def prtlist(msg: Message):
     await msg.ctx.channel.send(cm)
 
 
-@bot.task.add_interval(seconds=1)
+@bot.task.add_interval(seconds=5)
 async def update_played_time_and_change_music():
     global playtime
     global playlist
@@ -289,12 +289,12 @@ async def update_played_time_and_change_music():
                                             cm,
                                             )
                                     break
-                playtime += 1
+                playtime += 5
                 LOCK = False
                 return None
             else:
-                if playtime + 1 < duration:
-                    playtime += 1
+                if playtime + 5 < duration:
+                    playtime += 5
                     LOCK = False
                     return None
                 else:
