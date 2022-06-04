@@ -244,7 +244,7 @@ async def update_played_time_and_change_music():
                 if len(str(json.loads(song_list))) > 0:
                     if json.loads(song_list)["result"]["songCount"] > 0:
                         song_list = json.loads(song_list)["result"]["songs"]
-                        for item in enumerate(song_list):
+                        for i,item in enumerate(song_list):
                             item = json.dumps(item)
                             d = {
                                     "ids": "[" + str(json.loads(str(item))["id"]) + "]",
