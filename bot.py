@@ -136,146 +136,24 @@ def get_reply(params, encSecKey):
     return response.text
 
 
-async def play_music(msg, song_name, flag=False):
-    global p
+@bot.command(name="下一首")
+async def nextmusic(msg: Message):
+    global playlist
     global playtime
-    global starttime
-    kill()
-    # print(song_name)
-    d = {
-        "hlpretag": '<span class="s-fc7">',
-        "hlposttag": "</span>",
-        "s": song_name,
-        "type": "1",
-        "offset": "0",
-        "total": "true",
-        "limit": "30",
-        "csrf_token": "",
-    }
-    d = json.dumps(d)
-    random_param = get_random()
-    param = get_final_param(d, random_param)
-    song_list = get_music_list(param["params"], param["encSecKey"])
-    try:
-        if len(str(json.loads(song_list))) > 0:
-            if json.loads(song_list)["result"]["songCount"] > 0:
-                song_list = json.loads(song_list)["result"]["songs"]
-                for i, item in enumerate(song_list):
-                    item = json.dumps(item)
-                    # print(str(i) + "：" + str(json.loads(str(item))['name']))
-                    d = {
-                        "ids": "[" + str(json.loads(str(item))["id"]) + "]",
-                        "level": "standard",
-                        "encodeType": "",
-                        "csrf_token": "",
-                    }
-                    d = json.dumps(d)
-                    param = get_final_param(d, random_param)
-                    song_info = get_reply(param["params"], param["encSecKey"])
-                    if len(song_info) > 0:
-                        song_info = json.loads(song_info)
-                        if song_info["data"][0]["code"] == -110:
-                            continue
-                        else:
-                            song_url = json.dumps(
-                                song_info["data"][0]["url"], ensure_ascii=False
-                            )
-                            musicfile = requests.get(eval(song_url))
-                            open("tmp.mp3", "wb").write(musicfile.content)
-                            starttime = time.time()
-                            playtime = 0
-                            duration = get_duration_mp3("tmp.mp3")
-                            p = subprocess.Popen(
-                                'ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:1234',
-                                shell=True,
-                            )
-                            cm = [
-                                {
-                                    "type": "card",
-                                    "theme": "secondary",
-                                    "color": "#DD001B",
-                                    "size": "lg",
-                                    "modules": [
-                                        {
-                                            "type": "header",
-                                            "text": {
-                                                "type": "plain-text",
-                                                "content": "正在播放："
-                                                + str(json.loads(str(item))["name"]),
-                                            },
-                                        },
-                                        {
-                                            "type": "context",
-                                            "elements": [
-                                                {
-                                                    "type": "kmarkdown",
-                                                    "content": "歌手： ["
-                                                    + str(
-                                                        json.loads(str(item))["ar"][0][
-                                                            "name"
-                                                        ]
-                                                    )
-                                                    + "](https://music.163.com/#/artist?id="
-                                                    + str(
-                                                        json.loads(str(item))["ar"][0][
-                                                            "id"
-                                                        ]
-                                                    )
-                                                    + ")  —出自专辑 ["
-                                                    + str(
-                                                        json.loads(str(item))["al"][
-                                                            "name"
-                                                        ]
-                                                    )
-                                                    + "](https://music.163.com/#/album?id="
-                                                    + str(
-                                                        json.loads(str(item))["al"][
-                                                            "id"
-                                                        ]
-                                                    )
-                                                    + ")",
-                                                }
-                                            ],
-                                        },
-                                        {
-                                            "type": "audio",
-                                            "title": str(json.loads(str(item))["name"]),
-                                            "src": eval(song_url),
-                                            "cover": str(
-                                                json.loads(str(item))["al"]["picUrl"]
-                                            ),
-                                        },
-                                        {"type": "divider"},
-                                        {
-                                            "type": "context",
-                                            "elements": [
-                                                {
-                                                    "type": "image",
-                                                    "src": "https://img.kaiheila.cn/assets/2022-05/UmCnhm4mlt016016.png",
-                                                },
-                                                {
-                                                    "type": "kmarkdown",
-                                                    "content": "网易云音乐  [在网页查看](https://music.163.com/#/song?id="
-                                                    + str(json.loads(str(item))["id"])
-                                                    + ")",
-                                                },
-                                            ],
-                                        },
-                                    ],
-                                }
-                            ]
-                            await bot.send(
-                                await bot.fetch_public_channel("5770678777376304"), cm
-                            )
-                            break
-                    else:
-                        await msg.ctx.channel.send("该首歌曲解析失败，可能是因为歌曲格式问题")
-            else:
-                await msg.ctx.channel.send("很抱歉，未能搜索到相关歌曲信息")
-        else:
-            await msg.ctx.channel.send("ERROR 稍后重试")
-    except Exception as e:
-        play_music(msg, song_name, flag)
+    global LOCK
+    flag=True
+    user = msg.author
+    for role in user.roles
+        if role.has_permission(1):
+            flag=False
+            break
+    if flag:
+        await msg.ctx.channel.send("无权限")
+        return None
+    playtime=0
+    playlist.pop(0)
+    LOCK=False
+    await msg.ctx.channel.send("切换成功")
 
 
 @bot.command(name="点歌")
@@ -315,13 +193,6 @@ async def listen(msg: Message, linkid: str):
     for item in matches:
         playlist.append(item[1])
     await msg.ctx.channel.send("导入完成")
-
-
-# @bot.command(name='清空歌单')
-async def reset(msg: Message):
-    global playlist
-    playlist = [""]
-    await msg.ctx.channel.send("清空完成")
 
 
 @bot.command(name="歌单")
@@ -506,7 +377,7 @@ async def update_played_time_and_change_music():
                                     ]
                                     await bot.send(
                                         await bot.fetch_public_channel(
-                                            "5770678777376304"
+                                            config["channel"]
                                         ),
                                         cm,
                                     )
