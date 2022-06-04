@@ -27,7 +27,7 @@ def kill():
         p.kill()
         p.wait()
         p.terminate()
-        os.killgp(os.getpgid(pid + 1), signal.SIGTERM)
+        os.killgp(os.getpgid(p.pid + 1), signal.SIGTERM)
     except:
         pass
 
