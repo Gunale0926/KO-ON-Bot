@@ -13,6 +13,7 @@ import requests
 from Cryptodome.Cipher import AES
 import re
 import eyed3
+import psutil
 
 LOCK = False
 playtime = 0
@@ -22,10 +23,12 @@ cookie = "_ntes_nnid=8ff9c3f22e64b3dbb847b71650371a61,1647935810581; _ntes_nuid=
 
 
 def kill():
+    global p
     try:
-        p.kill()
-        p.terminate()
-        p.wait()
+        process = psutil.Process(p.pid+1)
+        for proc in process.children(recursive=True):
+            proc.kill()
+        process.kill()
     except Exception as e:
         print(e)
 
