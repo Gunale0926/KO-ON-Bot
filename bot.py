@@ -21,17 +21,6 @@ p = {}
 cookie = "_ntes_nnid=8ff9c3f22e64b3dbb847b71650371a61,1647935810581; _ntes_nuid=8ff9c3f22e64b3dbb847b71650371a61; NMTID=00OrOyfNUVuawDZoEZsnO6d58RRT0EAAAF_sKDmSw; WEVNSM=1.0.0; WNMCID=orzlno.1647935810851.01.0; WM_TID=AOWQjWwClPNFFUQUAQZuq54BjRS8wIPQ; lang=zh; _iuqxldmzr_=32; ntes_kaola_ad=1; __remember_me=true; MUSIC_U=6c5a3400f94b182eafbdf3ac438bfe4f11b09b8614cc41cce63af743c922f06fd1f884fb69b702f873523d0e5593273ae5cf297c1e51399c235d3316c5d2f10cee0ec6f4ed39863ca0d2166338885bd7; __csrf=f807bc54ad3c2d6833514a58e4c3aa34; WM_NI=CKXjKBtGq7FBVHKZcvUCgFoVLJWJgJviKCpTqFT9gPsP%2FpO9NrJ2rmA6P%2BmklMLq%2BDMQSefW8lZ0xtn9iWXmD82WvuR9vi7iu0YYBypgD%2FLxj%2FUHCFtmK1cW%2BGTcG1z%2BSkg%3D; WM_NIKE=9ca17ae2e6ffcda170e2e6eeb7c77092b38689d074f29a8ea3c84a828b9b86c85bacb586a7eb7489ece18fef2af0fea7c3b92a8195988bca4ab899bfd8c54a969885bbe27e979da9a7ee5e909699abe642b6b785a4f360b39a9cdae65cb190e191ce338eae86d3f16783eaa0ccf061b0938492aa508f8f9d86e55dfcb496d1fb80aee7a7b8db6788e8feb8f57f92e7ba8ab663b7f097bac173b4b98cd0cf74aaf19ba9c24eb8b385d2e25de9999c84c63bbaf59d8ce637e2a3; JSESSIONID-WYYY=VvhIWG%2FjjAadI8hnjXusdZABMHY%2B5jsPhwTXoBRPXihNAGPn6U1s39yFvgfI8KdCdxf8JBj9Kd5302gag%5CfqHxIMvw7lWdEhahEYeQ%5C%5CrAb8w1%5Cp0ZgK0ZEssTm%5CKVRtNH7%2BaH%5CVbzIxV%2B%2Bb%2B9e3dfFUn4%5Cu9wm8HlNsWrS7N5YQ%2FhU1%3A1654179341983"
 
 
-def kill():
-    global p
-    try:
-        p.kill()
-        p.wait()
-        p.terminate()
-        os.killgp(os.getpgid(p.pid), signal.SIGTERM)
-    except:
-        pass
-
-
 def get_duration_mp3(file_path):
     mp3Info = eyed3.load(file_path)
     return mp3Info.info.time_secs
@@ -272,6 +261,11 @@ async def update_played_time_and_change_music():
                                     open("tmp.mp3", "wb").write(musicfile.content)
                                     playtime = 0
                                     duration = get_duration_mp3("tmp.mp3")
+                                    try:
+                                        p.kill()
+                                        p.terminate()
+                                    except:
+                                        pass
                                     p = subprocess.Popen(
                                             'ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:1234',
                                             shell=True,
