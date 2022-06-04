@@ -22,6 +22,7 @@ cookie = "_ntes_nnid=8ff9c3f22e64b3dbb847b71650371a61,1647935810581; _ntes_nuid=
 
 
 def kill():
+    global p;
     try:
         os.kill(p.pid + 1, signal.SIGTERM)
     except:
@@ -140,13 +141,11 @@ async def nextmusic(msg: Message):
     global LOCK
     flag=True
     for role in msg.author.roles:
-        print(role)
         if role == config["skiper"]:
             flag=False
     if flag:
         await msg.ctx.channel.send("无权限")
         return
-    kill()
     playlist.pop(0)
     playtime=0
     LOCK=False
