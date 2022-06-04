@@ -146,6 +146,7 @@ async def nextmusic(msg: Message):
     if flag:
         await msg.ctx.channel.send("无权限")
         return
+    kill()
     playlist.pop(0)
     playtime=0
     LOCK=False
