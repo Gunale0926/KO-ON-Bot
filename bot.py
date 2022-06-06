@@ -189,9 +189,13 @@ async def update_played_time_and_change_music():
                     LOCK = False
                     return
                 if playlist[0]['type']=='netease':
-                    url="http://127.0.0.1:3000/search?keywords="+song_name+"&limit=1&cookie="+netease_cookie
+                    url="http://127.0.0.1:3000/search?keywords="+song_name+"&limit=1"
+                    if len(netease_cookie)>0:
+                        url+="&cookie="+netease_cookie
                     musicid=str(requests.get(url=url).json()['result']['songs'][0]['id'])
-                    url='http://127.0.0.1:3000/song/detail?ids='+musicid+"&cookie="+netease_cookie
+                    url='http://127.0.0.1:3000/song/detail?ids='+musicid
+                    if len(netease_cookie)>0:
+                        url+="&cookie="+netease_cookie
                     response=requests.get(url=url).json()['songs'][0]
                     song_name=response['name']
                     song_url='https://music.163.com/#/song?id='+str(response['id'])
@@ -202,7 +206,9 @@ async def update_played_time_and_change_music():
                     singer_name=response['ar'][0]['name']
                     singer_url='https://music.163.com/#/artist?id='+str(response['ar'][0]['id'])
                     pic_url=response['al']['picUrl']
-                    getfile_url='http://127.0.0.1:3000/song/url?id='+str(response['id'])+"&cookie="+netease_cookie
+                    getfile_url='http://127.0.0.1:3000/song/url?id='+str(response['id'])
+                    if len(netease_cookie)>0:
+                        getfile_url+="&cookie="+netease_cookie
                     response=requests.get(url=getfile_url).json()['data'][0]['url']
                     musicfile = requests.get(response)
                     open("tmp.mp3", "wb").write(musicfile.content)
@@ -235,7 +241,10 @@ async def update_played_time_and_change_music():
                     headers={
                         'cookie':qq_cookie
                     }
-                    response=requests.get(url=getfile_url,headers=headers).json()['data']
+                    if len(qq_cookie)>0:
+                        response=requests.get(url=getfile_url,headers=headers).json()['data']
+                    else:
+                        response=requests.get(url=getfile_url).json()['data']
                     musicfile = requests.get(response)
                     open("tmp.mp3", "wb").write(musicfile.content)
                     duration = eyed3.load("tmp.mp3").info.time_secs
