@@ -1,10 +1,8 @@
 {
 	"token": "",
-	"verify_token": "",
-	"encrypt_key": "",
 	"channel": "2394228955758801",
 	"voiceid": "7395538237423185",
-	"skiper": 439668,
+	"skipper": 439668,
 	"port": "1234",
 	"n_cookie": "",
 	"q_cookie": ""
