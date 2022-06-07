@@ -15,6 +15,7 @@ playtime = 0
 duration = 0
 netease_cookie = config["n_cookie"]
 qq_cookie = config["q_cookie"]
+qq_enable = config["qq_enable"]
 bot = Bot(token=config["token"])
 playlist = []
 
@@ -130,6 +131,7 @@ async def nextmusic(msg: Message):
 @bot.command(name="点歌")
 async def addmusic(msg: Message,*args):
     global helpcm
+    global qq_enable
     try:
         args=list(args)
         if msg.ctx.channel.id != config["channel"]:
@@ -138,9 +140,12 @@ async def addmusic(msg: Message,*args):
         global playlist
         typ='netease'
         song_name=''
-        if args[0]=='qq' or args[0]=='netease':
+        if args[0]=='qq' or args[0]=='netease': 
             typ=args[0]
             args.pop(0)
+            if typ=='qq' and qq_enable == 0:
+                await msg.ctx.channel.send('未启用qq点歌')
+                return None
         for st in args:
             song_name = song_name + st + " "
         playlist.append({'name':song_name,'userid':msg.author.id,'type':typ})
