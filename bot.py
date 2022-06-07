@@ -6,8 +6,11 @@ import requests
 from mutagen.flac import FLAC
 from mutagen.mp3 import MP3
 import psutil
+import re
+import urllib
+import urllib3
 import time
-
+import eyed3
 with open("config.json", "r", encoding="utf-8") as f:
     config = json.load(f)
 firstloginlock=True
@@ -101,7 +104,48 @@ helpcm=[
         ]
     }
 ]
+def getCidAndTitle(bvid,p=1):
+    url='https://api.bilibili.com/x/web-interface/view?bvid='+bvid
+    data=requests.get(url).json()['data']
+    title=data['title']
+    cid=data['pages'][p-1]['cid']
+    return str(cid),title
 
+def getInformation(bvid):
+
+    item=[]
+    if len(bvid) == 12:
+        print(1)
+        cid,title=getCidAndTitle(bvid)
+        item.append(bvid)
+    else:
+        print(2)
+        cid,title=getCidAndTitle(bvid[:12],int(bvid[13:]))
+        item.append(bvid[:12])
+    item.append(cid)
+    item.append(title)
+
+
+    return item
+
+def getAudio(item):
+    baseUrl='http://api.bilibili.com/x/player/playurl?fnval=16&'
+    bvid,cid,title=item[0],item[1],item[2]
+    url=baseUrl+'bvid='+bvid+'&cid='+cid
+    audioUrl=requests.get(url).json()['data']['dash']['audio'][0]['baseUrl']
+    opener = urllib.request.build_opener()
+    opener.addheaders = [
+        ('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:56.0) Gecko/20100101 Firefox/56.0'),
+        ('Accept', '*/*'),
+        ('Accept-Language', 'en-US,en;q=0.5'),
+        ('Accept-Encoding', 'gzip, deflate, br'),
+        ('Range', 'bytes=0-'),
+        ('Referer', 'https://api.bilibili.com/x/web-interface/view?bvid='+bvid),  # 注意修改referer,必须要加的!
+        ('Origin', 'https://www.bilibili.com'),
+        ('Connection', 'keep-alive'),
+    ]
+    urllib.request.install_opener(opener)
+    urllib.request.urlretrieve(url=audioUrl, filename='tmp.mp3')
 
 @bot.command(name="下一首")
 async def nextmusic(msg: Message):
@@ -143,7 +187,7 @@ async def addmusic(msg: Message,*args):
         global playlist
         typ='netease'
         song_name=''
-        if args[0]=='qq' or args[0]=='netease': 
+        if args[0]=='qq' or args[0]=='网易' or args[0]=='b站': 
             typ=args[0]
             args.pop(0)
             if typ=='qq' and qq_enable == 0:
@@ -192,9 +236,9 @@ async def update_played_time_and_change_music():
         response=requests.get(url=url).json()['data']['account']
         if response==None:
             url='http://127.0.0.1:3000/login/cellphone?phone='+netease_phone+'&password='+netease_passwd
-            requests.get(url=url).json()
+            print(requests.get(url=url).json())
             print('登陆成功')
-        
+        print('已登录')
         firstloginlock=False
     if LOCK:
         return
@@ -208,8 +252,9 @@ async def update_played_time_and_change_music():
                 song_name = playlist[0]['name']
                 if song_name == "":
                     LOCK = False
+                    
                     return
-                if playlist[0]['type']=='netease':
+                if playlist[0]['type']=='网易':
                     url="http://127.0.0.1:3000/search?keywords="+song_name+"&limit=1"
 
                     musicid=str(requests.get(url=url).json()['result']['songs'][0]['id'])
@@ -217,6 +262,16 @@ async def update_played_time_and_change_music():
 
                     response=requests.get(url=url).json()['songs'][0]
                     song_name=response['name']
+                    ban=re.compile('惊雷')
+                    resu=ban.findall(song_name)
+                    if len(resu)>0:
+                        LOCK=False
+                        await bot.send(
+                            await bot.fetch_public_channel(
+                                config["channel"]
+                            ),
+                            '吃了吗，没吃吃我一拳',
+                        )
                     song_url='https://music.163.com/#/song?id='+str(response['id'])
                     album_name=response['al']['name']
                     if album_name=='':
@@ -238,14 +293,14 @@ async def update_played_time_and_change_music():
                         urlresponse=''
                     
                     if urlresponse.startswith("http://m702") or urlresponse.startswith("http://m802") or len(urlresponse)==0:
-                        getfile_url='http://127.0.0.1:3000/song/url?id='+str(response['id'])+'&br=320000'
+                        getfile_url='http://127.0.0.1:3000/song/url?id='+str(response['id'])+'&br=2000000'
                         urlresponse=requests.get(url=getfile_url).json()['data'][0]['url']
                         print(urlresponse)
                     if urlresponse==None:
                         urlresponse=''
                     
                     if urlresponse.startswith("http://m702") or urlresponse.startswith("http://m802") or len(urlresponse)==0:
-                        getfile_url='http://127.0.0.1:3000/song/download/url?id='+str(response['id'])+'&br=320000'
+                        getfile_url='http://127.0.0.1:3000/song/download/url?id='+str(response['id'])+'&br=2000000'
                         urlresponse=requests.get(url=getfile_url).json()['data']['url']
                         print(urlresponse)
                     if urlresponse==None:
@@ -276,6 +331,34 @@ async def update_played_time_and_change_music():
                             config["channel"]
                         ),
                         cm,
+                    )
+                if playlist[0]['type']=='b站':
+                    song_name=song_name.replace(" ", "")
+                    print(song_name)
+                    getAudio(getInformation(song_name))
+                    bv=song_name
+                    url='http://api.bilibili.com/x/web-interface/view?bvid='+bv
+                    headers = {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.129 Safari/537.36"
+                    }  
+                    urllib3.disable_warnings()  
+                    response = requests.get(url,headers=headers)
+                    content = json.loads(response.text)
+
+                    statue_code = content.get('code')
+
+                    if statue_code == 0:   
+                        duration=content['data']['duration']
+                    playtime = 0
+                    p = subprocess.Popen(
+                        'ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'+config["port"],
+                        shell=True
+                    )
+                    await bot.send(
+                        await bot.fetch_public_channel(
+                            config["channel"]
+                        ),
+                        'https://www.bilibili.com/video/'+song_name,
                     )
                 else:
                     url="http://127.0.0.1:3300/search?key="+song_name+"&pageSize=1"
