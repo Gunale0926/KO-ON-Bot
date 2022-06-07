@@ -25,7 +25,9 @@ Open `config.json`
 
 - Set `port` to a local port.
 
-- (Optional) Set `n_cookie` to a NeteaseCloudMusic Cookie.
+- (Optional) Set `n_phone` to a NeteaseCloudMusic phone account.
+
+- (Optional) Set `n_passwd` to a NeteaseCloudMusic phone account password.
 
 - (Optional) Set `q_cookie` to a QQMusic Cookie.
 
