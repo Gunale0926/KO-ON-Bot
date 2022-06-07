@@ -10,7 +10,6 @@ import re
 import urllib
 import urllib3
 import time
-import eyed3
 with open("config.json", "r", encoding="utf-8") as f:
     config = json.load(f)
 firstloginlock=True
