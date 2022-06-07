@@ -7,7 +7,7 @@ git clone git@github.com:CarterGunale/MusicBot.git
 cd MusicBot
 git clone git@github.com:Binaryify/NeteaseCloudMusicApi.git
 ```
-Check the installation instruction of [NeteaseCloudMusicApi][https://github.com/Binaryify/NeteaseCloudMusicApi.git]
+Check the installation instruction of [NeteaseCloudMusicApi](https://github.com/Binaryify/NeteaseCloudMusicApi.git)
 
 ## Configure
 
@@ -36,7 +36,7 @@ Open `config.json`
 ```bash
 git clone git@github.com:jsososo/QQMusicApi.git
 ```
-Check the installation instruction of [QQMusicApi][https://github.com/jsososo/QQMusicApi.git]
+Check the installation instruction of [QQMusicApi](https://github.com/jsososo/QQMusicApi.git)
 
 Remove `#` which sit on the second line of `run.sh`
 
@@ -48,4 +48,4 @@ sh run.sh
 
 ## Contributing
 
-`voice.py` and it dependencies were contributed by [@hank9999][https://github.com/hank9999]
+`voice.py` and it dependencies were contributed by [@hank9999](https://github.com/hank9999)
