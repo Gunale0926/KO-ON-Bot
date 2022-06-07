@@ -4,7 +4,8 @@
 	"voiceid": "7395538237423185",
 	"skipper": 439668,
 	"port": "1234",
-	"n_cookie": "",
+	"n_phone": "",
+	"n_passwd": "",
 	"q_cookie": "",
 	"qq_enable": 0
 }
