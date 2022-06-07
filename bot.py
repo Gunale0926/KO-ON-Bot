@@ -10,6 +10,7 @@ import re
 import urllib
 import urllib3
 import time
+
 with open("config.json", "r", encoding="utf-8") as f:
     config = json.load(f)
 firstloginlock=True
@@ -62,7 +63,7 @@ helpcm=[
                 "type": "section",
                 "text": {
                     "type": "kmarkdown",
-                    "content": "功能:    将歌曲加到播放队列中\ntips:\n歌名中如果有英文引号等特殊字符，需要将歌名用英文引号括起来\n例如  **点歌 \"Rrhar'il\"**\n如果需要指定歌曲版本播放，可以在歌名后添加歌手\n例如  **点歌 勇敢勇敢-黄勇**\n现支持QQ音乐与网易云音乐，若不写平台则默认从网易云获取数据\n例如  **点歌 qq heavensdoor**\n例如  **点歌 netease 勇敢勇敢-黄勇**"
+                    "content": "功能:    将歌曲加到播放队列中\ntips:\n歌名中如果有英文引号等特殊字符，需要将歌名用英文引号括起来\n例如  **点歌 \"Rrhar'il\"**\n如果需要指定歌曲版本播放，可以在歌名后添加歌手\n例如  **点歌 勇敢勇敢-黄勇**\n现支持QQ音乐、网易云音乐与B站，若不写平台则默认从网易云获取数据\n例如  **点歌 qq heavensdoor**\n例如  **点歌 网易 勇敢勇敢-黄勇**\n例如  **点歌 b站 BV1qa411e7Fi**"
                 }
             },
             {
