@@ -7,5 +7,6 @@
 	"n_phone": "",
 	"n_passwd": "",
 	"q_cookie": "",
-	"qq_enable": 0
+	"qq_enable": 0,
+	"ostype": 0
 }
