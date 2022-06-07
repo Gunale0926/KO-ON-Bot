@@ -25,6 +25,8 @@ Open `config.json`
 
 - Set `port` to a local port.
 
+- Set `ostype` to your system type.If you are using Linux , set `ostype` to 1 , else set to 0
+
 - (Optional) Set `n_phone` to a NeteaseCloudMusic phone account.
 
 - (Optional) Set `n_passwd` to a NeteaseCloudMusic phone account password.
