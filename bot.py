@@ -17,6 +17,7 @@ netease_phone = config["n_phone"]
 netease_passwd = config["n_passwd"]
 qq_cookie = config["q_cookie"]
 qq_enable = config["qq_enable"]
+ostype = config["ostype"]
 bot = Bot(token=config["token"])
 playlist = []
 
@@ -24,7 +25,7 @@ playlist = []
 def kill():
     global p
     try:
-        process = psutil.Process(p.pid) #Linux 需要 +1，MacOS和Windows不需要
+        process = psutil.Process(p.pid + ostype) #Linux 需要 +1，MacOS和Windows不需要
         for proc in process.children(recursive=True):
             proc.kill()
         process.kill()
