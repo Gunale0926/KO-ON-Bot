@@ -3,7 +3,8 @@ from khl import Message, Bot
 from khl.card import CardMessage, Card, Module
 import subprocess
 import requests
-import eyed3
+from mutagen.flac import FLAC
+from mutagen.mp3 import MP3
 import psutil
 import time
 
@@ -187,9 +188,13 @@ async def update_played_time_and_change_music():
     global netease_passwd
     global firstloginlock
     if firstloginlock==True:
-        url='http://127.0.0.1:3000/login/cellphone?phone='+netease_phone+'&password='+netease_passwd
-        requests.get(url=url)
-        print('login')
+        url='http://127.0.0.1:3000/login/status'
+        response=requests.get(url=url).json()['data']['account']
+        if response==None:
+            url='http://127.0.0.1:3000/login/cellphone?phone='+netease_phone+'&password='+netease_passwd
+            requests.get(url=url).json()
+            print('登陆成功')
+        
         firstloginlock=False
     if LOCK:
         return
@@ -220,19 +225,52 @@ async def update_played_time_and_change_music():
                     singer_name=response['ar'][0]['name']
                     singer_url='https://music.163.com/#/artist?id='+str(response['ar'][0]['id'])
                     pic_url=response['al']['picUrl']
-                    getfile_url='http://127.0.0.1:3000/song/download/url?id='+str(response['id'])+'&br=320000'          
-                    response=requests.get(url=getfile_url).json()['data']['url']
-                    musicfile = requests.get(response)
-                    open("tmp.mp3", "wb").write(musicfile.content)
-                    duration = eyed3.load("tmp.mp3").info.time_secs
+                    getfile_url='http://127.0.0.1:3000/song/url?id='+str(response['id'])
+                    urlresponse=requests.get(url=getfile_url).json()['data'][0]['url']
+                    print(urlresponse)
+                    if urlresponse==None:
+                        urlresponse=''
+                    if urlresponse.startswith("http://m702") or urlresponse.startswith("http://m802") or len(urlresponse)==0:
+                        getfile_url='http://127.0.0.1:3000/song/download/url?id='+str(response['id'])
+                        urlresponse=requests.get(url=getfile_url).json()['data']['url']
+                        print(urlresponse)
+                    if urlresponse==None:
+                        urlresponse=''
+                    
+                    if urlresponse.startswith("http://m702") or urlresponse.startswith("http://m802") or len(urlresponse)==0:
+                        getfile_url='http://127.0.0.1:3000/song/url?id='+str(response['id'])+'&br=320000'
+                        urlresponse=requests.get(url=getfile_url).json()['data'][0]['url']
+                        print(urlresponse)
+                    if urlresponse==None:
+                        urlresponse=''
+                    
+                    if urlresponse.startswith("http://m702") or urlresponse.startswith("http://m802") or len(urlresponse)==0:
+                        getfile_url='http://127.0.0.1:3000/song/download/url?id='+str(response['id'])+'&br=320000'
+                        urlresponse=requests.get(url=getfile_url).json()['data']['url']
+                        print(urlresponse)
+                    if urlresponse==None:
+                        urlresponse=''
+                    musicfile = requests.get(urlresponse)
+                    if urlresponse.endswith("flac"):
+                        open("tmp.flac", "wb").write(musicfile.content)
+                        duration = FLAC("tmp.flac").info.length
+                        p = subprocess.Popen(
+                            'ffmpeg -re -nostats -i "tmp.flac" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'+config["port"],
+                            shell=True
+                        )
+                    else:
+                        open("tmp.mp3", "wb").write(musicfile.content)
+                        duration = MP3("tmp.mp3").info.length
+                        p = subprocess.Popen(
+                            'ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'+config["port"],
+                            shell=True
+                        )
+                    
                     starttime=int(round(time.time() * 1000))
                     endtime=starttime+int(duration*1000)
                     playtime = 0
-                    p = subprocess.Popen(
-                        'ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'+config["port"],
-                        shell=True
-                    )
-                    cm = [ { "type": "card", "theme": "secondary", "color": "#DD001B", "size": "lg", "modules": [ { "type": "header", "text": { "type": "plain-text", "content": "正在播放：" + song_name, }, }, { "type": "section", "text": { "type": "kmarkdown", "content":"(met)" +playlist[0]['userid']+"(met)", }, }, { "type": "context", "elements": [ { "type": "kmarkdown", "content": "歌手： [" + singer_name + "](" + singer_url + ")  —出自专辑 [" + album_name + "](" + album_url + ")", } ], }, { "type": "audio", "title": song_name, "src": response, "cover": pic_url, }, {"type": "countdown","mode": "second","startTime": starttime,"endTime": endtime},{"type": "divider"}, { "type": "context", "elements": [ { "type": "image", "src":  "https://img.kaiheila.cn/assets/2022-05/UmCnhm4mlt016016.png", }, { "type": "kmarkdown", "content": "网易云音乐  [在网页查看](" + song_url + ")", }, ], }, ], } ]
+                    
+                    cm = [ { "type": "card", "theme": "secondary", "color": "#DD001B", "size": "lg", "modules": [ { "type": "header", "text": { "type": "plain-text", "content": "正在播放：" + song_name, }, }, { "type": "section", "text": { "type": "kmarkdown", "content":"(met)" +playlist[0]['userid']+"(met)", }, }, { "type": "context", "elements": [ { "type": "kmarkdown", "content": "歌手： [" + singer_name + "](" + singer_url + ")  —出自专辑 [" + album_name + "](" + album_url + ")", } ], }, { "type": "audio", "title": song_name, "src": urlresponse, "cover": pic_url, }, {"type": "countdown","mode": "second","startTime": starttime,"endTime": endtime},{"type": "divider"}, { "type": "context", "elements": [ { "type": "image", "src":  "https://img.kaiheila.cn/assets/2022-05/UmCnhm4mlt016016.png", }, { "type": "kmarkdown", "content": "网易云音乐  [在网页查看](" + song_url + ")", }, ], }, ], } ]
                     await bot.send(
                         await bot.fetch_public_channel(
                             config["channel"]
@@ -261,7 +299,7 @@ async def update_played_time_and_change_music():
                         response=requests.get(url=getfile_url).json()['data']
                     musicfile = requests.get(response)
                     open("tmp.mp3", "wb").write(musicfile.content)
-                    duration = eyed3.load("tmp.mp3").info.time_secs
+                    duration = MP3("tmp.mp3").info.length
                     starttime=int(round(time.time() * 1000))
                     endtime=starttime+int(duration*1000)
                     playtime = 0
@@ -290,13 +328,11 @@ async def update_played_time_and_change_music():
                     LOCK = False
                     return None
 
-@bot.task.add_interval(days=1)
+@bot.task.add_interval(hours=2)
 async def keep_login():
-    global netease_phone
-    global netease_passwd
-    url='http://127.0.0.1:3000/login/cellphone?phone='+netease_phone+'&password='+netease_passwd
+    url='http://127.0.0.1:3000/login/refresh'
     requests.get(url=url)
-    print('login')
+    print('刷新登录')
 
 bot.command.update_prefixes("")
 bot.run()
