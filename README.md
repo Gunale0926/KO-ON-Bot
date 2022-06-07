@@ -29,7 +29,7 @@ Open `config.json`
 
 - (Optional) Set `q_cookie` to a QQMusic Cookie.
 
-- (Optional) If you want to use QQMusic plugin, set `q_enable` to `1`.
+- (Optional) If you want to use QQMusic plugin, set `qq_enable` to `1`.
 
 ## Plugins
 
