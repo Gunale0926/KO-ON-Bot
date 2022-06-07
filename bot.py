@@ -185,7 +185,7 @@ async def addmusic(msg: Message,*args):
             await msg.ctx.channel.send('请在指定频道中点歌')
             return
         global playlist
-        typ='netease'
+        typ='网易'
         song_name=''
         if args[0]=='qq' or args[0]=='网易' or args[0]=='b站': 
             typ=args[0]
@@ -332,7 +332,7 @@ async def update_played_time_and_change_music():
                         ),
                         cm,
                     )
-                if playlist[0]['type']=='b站':
+                elif playlist[0]['type']=='b站':
                     song_name=song_name.replace(" ", "")
                     print(song_name)
                     getAudio(getInformation(song_name))
