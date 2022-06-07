@@ -9,11 +9,12 @@ import time
 
 with open("config.json", "r", encoding="utf-8") as f:
     config = json.load(f)
-
+firstloginlock=True
 LOCK = False
 playtime = 0
 duration = 0
-netease_cookie = config["n_cookie"]
+netease_phone = config["n_phone"]
+netease_passwd = config["n_passwd"]
 qq_cookie = config["q_cookie"]
 qq_enable = config["qq_enable"]
 bot = Bot(token=config["token"])
@@ -181,6 +182,14 @@ async def update_played_time_and_change_music():
     global LOCK
     global duration
     global p
+    global netease_phone
+    global netease_passwd
+    global firstloginlock
+    if firstloginlock==True:
+        url='http://127.0.0.1:3000/login/cellphone?phone='+netease_phone+'&password='+netease_passwd
+        requests.get(url=url)
+        print('login')
+        firstloginlock=False
     if LOCK:
         return
     else:
@@ -196,12 +205,10 @@ async def update_played_time_and_change_music():
                     return
                 if playlist[0]['type']=='netease':
                     url="http://127.0.0.1:3000/search?keywords="+song_name+"&limit=1"
-                    if len(netease_cookie)>0:
-                        url+="&cookie="+netease_cookie
+
                     musicid=str(requests.get(url=url).json()['result']['songs'][0]['id'])
                     url='http://127.0.0.1:3000/song/detail?ids='+musicid
-                    if len(netease_cookie)>0:
-                        url+="&cookie="+netease_cookie
+
                     response=requests.get(url=url).json()['songs'][0]
                     song_name=response['name']
                     song_url='https://music.163.com/#/song?id='+str(response['id'])
@@ -212,10 +219,8 @@ async def update_played_time_and_change_music():
                     singer_name=response['ar'][0]['name']
                     singer_url='https://music.163.com/#/artist?id='+str(response['ar'][0]['id'])
                     pic_url=response['al']['picUrl']
-                    getfile_url='http://127.0.0.1:3000/song/url?id='+str(response['id'])
-                    if len(netease_cookie)>0:
-                        getfile_url+="&cookie="+netease_cookie
-                    response=requests.get(url=getfile_url).json()['data'][0]['url']
+                    getfile_url='http://127.0.0.1:3000/song/download/url?id='+str(response['id'])+'&br=320000'          
+                    response=requests.get(url=getfile_url).json()['data']['url']
                     musicfile = requests.get(response)
                     open("tmp.mp3", "wb").write(musicfile.content)
                     duration = eyed3.load("tmp.mp3").info.time_secs
@@ -245,7 +250,7 @@ async def update_played_time_and_change_music():
                     singer_name=response['singer'][0]['name']
                     singer_url='https://y.qq.com/n/ryqq/singer/'+response['singer'][0]['mid']
                     pic_url='https://y.gtimg.cn/music/photo_new/T002R300x300M000'+response['albummid']+'.jpg'
-                    getfile_url='http://127.0.0.1:3300/song/url?id='+response['songmid']+'&mediaId='+response['strMediaMid']
+                    getfile_url='http://127.0.0.1:3300/song/url?id='+response['songmid']+'&mediaId='+response['strMediaMid']+'&ownCookie=1'
                     headers={
                         'cookie':qq_cookie
                     }
@@ -284,6 +289,13 @@ async def update_played_time_and_change_music():
                     LOCK = False
                     return None
 
+@bot.task.add_interval(days=1)
+async def keep_login():
+    global netease_phone
+    global netease_passwd
+    url='http://127.0.0.1:3000/login/cellphone?phone='+netease_phone+'&password='+netease_passwd
+    requests.get(url=url)
+    print('login')
 
 bot.command.update_prefixes("")
 bot.run()
