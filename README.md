@@ -4,7 +4,10 @@
 
 ```bash
 git clone git@github.com:CarterGunale/MusicBot.git
+cd MusicBot
+git clone git@github.com:Binaryify/NeteaseCloudMusicApi.git
 ```
+Check the installation instruction of [NeteaseCloudMusicApi][https://github.com/Binaryify/NeteaseCloudMusicApi.git]
 
 ## Configure
 
@@ -22,9 +25,18 @@ Open `config.json`
 
 - Set `port` to a local port.
 
-- (Optional) `n_cookie` to a NeteaseCloudMusic Cookie
+- (Optional) Set `n_cookie` to a NeteaseCloudMusic Cookie.
 
-- (Optional) `q_cookie` to a QQMusic Cookie
+- (Optional) Set `q_cookie` to a QQMusic Cookie.
+
+- (Optional) If you want to use QQMusic plugin, set `q_enable` to `1`.
+
+## Plugins
+
+```bash
+git clone git@github.com:jsososo/QQMusicApi.git
+```
+Check the installation instruction of [QQMusicApi][https://github.com/jsososo/QQMusicApi.git]
 
 ## Run
 
