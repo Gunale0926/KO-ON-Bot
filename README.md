@@ -38,6 +38,8 @@ git clone git@github.com:jsososo/QQMusicApi.git
 ```
 Check the installation instruction of [QQMusicApi][https://github.com/jsososo/QQMusicApi.git]
 
+Remove `#` which sit on the second line of `run.sh`
+
 ## Run
 
 ```bash
