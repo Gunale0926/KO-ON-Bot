@@ -269,16 +269,18 @@ async def update_played_time_and_change_music():
                     response=requests.get(url=url).json()['songs'][0]
                     duration=int(response['dt']/1000)
                     song_name=response['name']
-                    ban=re.compile('惊雷')
+                    ban=re.compile('(惊雷)?(Lost Rivers)?')
                     resu=ban.findall(song_name)
                     if len(resu)>0:
                         LOCK=False
+                        playlist.pop(0)
                         await bot.send(
                             await bot.fetch_public_channel(
                                 config["channel"]
                             ),
                             '吃了吗，没吃吃我一拳',
                         )
+                        return None
                     song_url='https://music.163.com/#/song?id='+str(response['id'])
                     album_name=response['al']['name']
                     if album_name=='':
@@ -346,6 +348,18 @@ async def update_played_time_and_change_music():
                     endtime=starttime+int(duration*1000)
                     cm=[{"type": "card","theme": "secondary", "color": "#DD001B", "size": "lg","modules": [{"type": "section","text": {"type": "kmarkdown","content": "**标题:        ["+title+"](https://www.bilibili.com/video/"+song_name+"/)**"}},{"type": "section","text": {"type": "kmarkdown","content": "UP:         ["+name+"](https://space.bilibili.com/"+mid+"/)"}},{"type": "container","elements": [{"type": "image","src": pic}]},{"type": "countdown","mode": "second","startTime": starttime,"endTime": endtime}]}]
                     print(duration)
+                    ban=re.compile('(惊雷)?(Lost Rivers)?')
+                    resu=ban.findall(title)
+                    if len(resu)>0:
+                        LOCK=False
+                        playlist.pop(0)
+                        await bot.send(
+                            await bot.fetch_public_channel(
+                                config["channel"]
+                            ),
+                            '吃了吗，没吃吃我一拳',
+                        )
+                        return None
                     playtime = 0
                     p = subprocess.Popen(
                         'ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'+config["port"],
@@ -361,6 +375,18 @@ async def update_played_time_and_change_music():
                     url="http://127.0.0.1:3300/search?key="+song_name+"&pageSize=1"
                     response=requests.get(url=url).json()['data']['list'][0]
                     song_name=response['songname']
+                    ban=re.compile('(惊雷)?(Lost Rivers)?')
+                    resu=ban.findall(song_name)
+                    if len(resu)>0:
+                        LOCK=False
+                        playlist.pop(0)
+                        await bot.send(
+                            await bot.fetch_public_channel(
+                                config["channel"]
+                            ),
+                            '吃了吗，没吃吃我一拳',
+                        )
+                        return None
                     duration=response['interval']
                     song_url='https://y.qq.com/n/ryqq/songDetail/'+response['songmid']
                     album_name=response['albumname']
