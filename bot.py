@@ -3,12 +3,8 @@ from khl import Message, Bot
 from khl.card import CardMessage, Card, Module
 import subprocess
 import requests
-from mutagen.flac import FLAC
-from mutagen.mp3 import MP3
 import psutil
 import re
-import urllib
-import urllib3
 import time
 
 with open("config.json", "r", encoding="utf-8") as f:
@@ -142,19 +138,18 @@ def getAudio(item):
     bvid,cid,title,mid,name,pic=item[0],item[1],item[2],item[3],item[4],item[5]
     url=baseUrl+'bvid='+bvid+'&cid='+cid
     audioUrl=requests.get(url).json()['data']['dash']['audio'][0]['baseUrl']
-    opener = urllib.request.build_opener()
-    opener.addheaders = [
-        ('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:56.0) Gecko/20100101 Firefox/56.0'),
-        ('Accept', '*/*'),
-        ('Accept-Language', 'en-US,en;q=0.5'),
-        ('Accept-Encoding', 'gzip, deflate, br'),
-        ('Range', 'bytes=0-'),
-        ('Referer', 'https://api.bilibili.com/x/web-interface/view?bvid='+bvid),  # 注意修改referer,必须要加的!
-        ('Origin', 'https://www.bilibili.com'),
-        ('Connection', 'keep-alive'),
-    ]
-    urllib.request.install_opener(opener)
-    urllib.request.urlretrieve(url=audioUrl, filename='tmp.mp3')
+    headers =  {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:56.0) Gecko/20100101 Firefox/56.0',
+        'Accept': '*/*',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Range': 'bytes=0-',
+        'Referer': 'https://api.bilibili.com/x/web-interface/view?bvid='+bvid,
+        'Origin': 'https://www.bilibili.com',
+        'Connection': 'keep-alive'
+    }
+    response=requests.get(url=audioUrl, headers=headers)
+    open("tmp.mp3", "wb").write(response.content)
     return bvid,cid,title,mid,name,pic
 
 @bot.command(name="下一首")
@@ -266,11 +261,13 @@ async def update_played_time_and_change_music():
                     return
                 if playlist[0]['type']=='网易':
                     url="http://127.0.0.1:3000/search?keywords="+song_name+"&limit=1"
-
-                    musicid=str(requests.get(url=url).json()['result']['songs'][0]['id'])
+                    response=requests.get(url=url).json()
+                    musicid=str(response['result']['songs'][0]['id'])
+                    
                     url='http://127.0.0.1:3000/song/detail?ids='+musicid
 
                     response=requests.get(url=url).json()['songs'][0]
+                    duration=int(response['dt']/1000)
                     song_name=response['name']
                     ban=re.compile('惊雷')
                     resu=ban.findall(song_name)
@@ -295,21 +292,21 @@ async def update_played_time_and_change_music():
                     print(urlresponse)
                     if urlresponse==None:
                         urlresponse=''
-                    if urlresponse.startswith("http://m702") or urlresponse.startswith("http://m802") or len(urlresponse)==0:
+                    if (urlresponse.startswith("http://m702") or urlresponse.startswith("http://m802") or len(urlresponse)==0)and not urlresponse.endswith(".flac"):
                         getfile_url='http://127.0.0.1:3000/song/download/url?id='+str(response['id'])
                         urlresponse=requests.get(url=getfile_url).json()['data']['url']
                         print(urlresponse)
                     if urlresponse==None:
                         urlresponse=''
                     
-                    if urlresponse.startswith("http://m702") or urlresponse.startswith("http://m802") or len(urlresponse)==0:
+                    if (urlresponse.startswith("http://m702") or urlresponse.startswith("http://m802") or len(urlresponse)==0)and not urlresponse.endswith(".flac"):
                         getfile_url='http://127.0.0.1:3000/song/url?id='+str(response['id'])+'&br=2000000'
                         urlresponse=requests.get(url=getfile_url).json()['data'][0]['url']
                         print(urlresponse)
                     if urlresponse==None:
                         urlresponse=''
                     
-                    if urlresponse.startswith("http://m702") or urlresponse.startswith("http://m802") or len(urlresponse)==0:
+                    if (urlresponse.startswith("http://m702") or urlresponse.startswith("http://m802") or len(urlresponse)==0)and not urlresponse.endswith(".flac"):
                         getfile_url='http://127.0.0.1:3000/song/download/url?id='+str(response['id'])+'&br=2000000'
                         urlresponse=requests.get(url=getfile_url).json()['data']['url']
                         print(urlresponse)
@@ -318,14 +315,14 @@ async def update_played_time_and_change_music():
                     musicfile = requests.get(urlresponse)
                     if urlresponse.endswith("flac"):
                         open("tmp.flac", "wb").write(musicfile.content)
-                        duration = FLAC("tmp.flac").info.length
+
                         p = subprocess.Popen(
                             'ffmpeg -re -nostats -i "tmp.flac" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'+config["port"],
                             shell=True
                         )
                     else:
                         open("tmp.mp3", "wb").write(musicfile.content)
-                        duration = MP3("tmp.mp3").info.length
+
                         p = subprocess.Popen(
                             'ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'+config["port"],
                             shell=True
@@ -364,6 +361,7 @@ async def update_played_time_and_change_music():
                     url="http://127.0.0.1:3300/search?key="+song_name+"&pageSize=1"
                     response=requests.get(url=url).json()['data']['list'][0]
                     song_name=response['songname']
+                    duration=response['interval']
                     song_url='https://y.qq.com/n/ryqq/songDetail/'+response['songmid']
                     album_name=response['albumname']
                     if album_name=='':
@@ -382,7 +380,6 @@ async def update_played_time_and_change_music():
                         response=requests.get(url=getfile_url).json()['data']
                     musicfile = requests.get(response)
                     open("tmp.mp3", "wb").write(musicfile.content)
-                    duration = MP3("tmp.mp3").info.length
                     starttime=int(round(time.time() * 1000))
                     endtime=starttime+int(duration*1000)
                     playtime = 0
