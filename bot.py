@@ -123,7 +123,7 @@ def getInformation(bvid):
     item=[]
     if len(bvid) == 12:
 
-        cid,title,mid=getCidAndTitle(bvid)
+        cid,title,mid,name,pic=getCidAndTitle(bvid[:12])
         item.append(bvid)
     else:
 
