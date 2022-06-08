@@ -105,32 +105,41 @@ helpcm=[
     }
 ]
 def getCidAndTitle(bvid,p=1):
+    global duration
+    
     url='https://api.bilibili.com/x/web-interface/view?bvid='+bvid
     data=requests.get(url).json()['data']
     title=data['title']
     cid=data['pages'][p-1]['cid']
-    return str(cid),title
+    duration=data['pages'][p-1]['duration']
+    mid=str(data['owner']['mid'])
+    name=data['owner']['name']
+    pic=data['pic']
+    print(cid,title,mid)
+    return str(cid),title,mid,name,pic
 
 def getInformation(bvid):
-
+    bvid=bvid.replace("?p=", " ")
     item=[]
     if len(bvid) == 12:
-        print(1)
-        cid,title=getCidAndTitle(bvid)
+
+        cid,title,mid=getCidAndTitle(bvid)
         item.append(bvid)
     else:
-        print(2)
-        cid,title=getCidAndTitle(bvid[:12],int(bvid[13:]))
+
+        cid,title,mid,name,pic=getCidAndTitle(bvid[:12],int(bvid[13:]))
         item.append(bvid[:12])
     item.append(cid)
     item.append(title)
-
+    item.append(mid)
+    item.append(name)
+    item.append(pic)
 
     return item
 
 def getAudio(item):
     baseUrl='http://api.bilibili.com/x/player/playurl?fnval=16&'
-    bvid,cid,title=item[0],item[1],item[2]
+    bvid,cid,title,mid,name,pic=item[0],item[1],item[2],item[3],item[4],item[5]
     url=baseUrl+'bvid='+bvid+'&cid='+cid
     audioUrl=requests.get(url).json()['data']['dash']['audio'][0]['baseUrl']
     opener = urllib.request.build_opener()
@@ -146,6 +155,7 @@ def getAudio(item):
     ]
     urllib.request.install_opener(opener)
     urllib.request.urlretrieve(url=audioUrl, filename='tmp.mp3')
+    return bvid,cid,title,mid,name,pic
 
 @bot.command(name="下一首")
 async def nextmusic(msg: Message):
@@ -334,21 +344,11 @@ async def update_played_time_and_change_music():
                     )
                 elif playlist[0]['type']=='b站':
                     song_name=song_name.replace(" ", "")
-                    print(song_name)
-                    getAudio(getInformation(song_name))
-                    bv=song_name
-                    url='http://api.bilibili.com/x/web-interface/view?bvid='+bv
-                    headers = {
-                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.129 Safari/537.36"
-                    }  
-                    urllib3.disable_warnings()  
-                    response = requests.get(url,headers=headers)
-                    content = json.loads(response.text)
-
-                    statue_code = content.get('code')
-
-                    if statue_code == 0:   
-                        duration=content['data']['duration']
+                    bvid,cid,title,mid,name,pic=getAudio(getInformation(song_name))
+                    starttime=int(round(time.time() * 1000))
+                    endtime=starttime+int(duration*1000)
+                    cm=[{"type": "card","theme": "secondary", "color": "#DD001B", "size": "lg","modules": [{"type": "section","text": {"type": "kmarkdown","content": "**标题:        ["+title+"](https://www.bilibili.com/video/"+song_name+"/)**"}},{"type": "section","text": {"type": "kmarkdown","content": "UP:         ["+name+"](https://space.bilibili.com/"+mid+"/)"}},{"type": "container","elements": [{"type": "image","src": pic}]},{"type": "countdown","mode": "second","startTime": starttime,"endTime": endtime}]}]
+                    print(duration)
                     playtime = 0
                     p = subprocess.Popen(
                         'ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'+config["port"],
@@ -358,7 +358,7 @@ async def update_played_time_and_change_music():
                         await bot.fetch_public_channel(
                             config["channel"]
                         ),
-                        'https://www.bilibili.com/video/'+song_name,
+                        cm,
                     )
                 else:
                     url="http://127.0.0.1:3300/search?key="+song_name+"&pageSize=1"
