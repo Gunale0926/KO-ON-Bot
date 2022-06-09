@@ -25,7 +25,7 @@ p=subprocess.Popen('ffmpeg')
 def kill():
     global p
     try:
-        process = psutil.Process(p.pid + ostype) #Linux 需要 +1，MacOS和Windows不需要
+        process = psutil.Process(p.pid)
         for proc in process.children(recursive=True):
             proc.kill()
         process.kill()
@@ -205,7 +205,7 @@ async def listen(msg: Message, linkid : str):
     songs = requests.get(url=url).json()["songs"]
 
     for song in songs:
-        playlist.append({'name':song['name']+"-"+song['ar'][0]['name'],'userid':msg.author.id,'type':'网易'})
+        playlist.append({'name':song['name']+"-"+song['ar'][0]['name']+' '+str(song['id']),'userid':msg.author.id,'type':'网易'})
     await msg.ctx.channel.send("导入完成")
 
 @bot.command(name='清空歌单')
