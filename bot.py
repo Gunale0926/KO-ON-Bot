@@ -305,8 +305,8 @@ async def update_played_time_and_change_music():
     global firstloginlock
     if firstloginlock==True:
         url='http://127.0.0.1:3000/login/status'
-        response=requests.get(url=url).json()['data']['account']
-        if response==None:
+        response=requests.get(url=url).json()['data']['account']['status']
+        if response==-10:
             url='http://127.0.0.1:3000/login/cellphone?phone='+netease_phone+'&password='+netease_passwd
             print(requests.get(url=url).json())
             print('登陆成功')
