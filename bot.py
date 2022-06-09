@@ -59,7 +59,7 @@ helpcm=[
         "type": "section",
         "text": {
           "type": "kmarkdown",
-          "content": "功能:    将歌曲加到播放队列中\ntips:\n歌名中如果有英文引号等特殊字符，需要将歌名用英文引号括起来\n例如  **点歌 \"Rrhar'il\"**\n如果需要指定歌曲版本播放，可以在歌名后添加歌手\n例如  **点歌 勇敢勇敢-黄勇**\n现支持QQ音乐、网易云音乐与B站，若不写平台则默认从网易云获取数据（QQ音乐需要单独安装api并在config.json中启用平台）\n例如  **点歌 qq heavensdoor**\n例如  **点歌 网易 勇敢勇敢-黄勇**\n例如  **点歌 b站 BV1qa411e7Fi**\n例如  **点歌 你看到的我**"
+          "content": "功能:    将歌曲加到播放队列中\ntips:\n歌名中如果有英文引号等特殊字符，需要将歌名用英文引号括起来\n例如  **点歌 \"Rrhar'il\"**\n如果需要指定歌曲版本播放，可以在歌名后添加歌手\n例如  **点歌 勇敢勇敢-黄勇**\n现支持QQ音乐、网易云音乐、网易云音乐电台与B站，若不写平台则默认从网易云获取数据（QQ音乐需要单独安装api并在config.json中启用平台、网易云电台仅支持从节目id点播）\n例如  **点歌 qq heavensdoor**\n例如  **点歌 网易 勇敢勇敢-黄勇**\n例如  **点歌 b站 BV1qa411e7Fi**\n例如  **点歌 你看到的我**\n例如  **点歌 网易电台 2499131107**"
         }
       },
       {
@@ -103,7 +103,7 @@ helpcm=[
         "type": "section",
         "text": {
           "type": "kmarkdown",
-          "content": "**4.  导入歌单       +      网易云歌单id**"
+          "content": "**4.  导入歌单       +       网易云歌单id**"
         }
       },
       {
@@ -120,7 +120,24 @@ helpcm=[
         "type": "section",
         "text": {
           "type": "kmarkdown",
-          "content": "**5.  清空歌单**"
+          "content": "**5.  导入电台       +       网易云电台id**"
+        }
+      },
+      {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "功能:    将网易电台中的歌曲导入到播放队列\n例如  **导入电台 972583481**"
+        }
+      },
+      {
+        "type": "divider"
+      },
+      {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "**6.  清空歌单**"
         }
       },
       {
@@ -208,6 +225,17 @@ async def listen(msg: Message, linkid : str):
         playlist.append({'name':song['name']+"-"+song['ar'][0]['name']+' '+str(song['id']),'userid':msg.author.id,'type':'网易'})
     await msg.ctx.channel.send("导入完成")
 
+@bot.command(name='导入电台')
+async def listen(msg: Message, linkid : str):
+    global playlist
+    url = "http://127.0.0.1:3000/dj/program?rid="+linkid
+    
+    programs = requests.get(url=url).json()["programs"]
+
+    for program in programs:
+        playlist.append({'name':program['mainSong']['name']+'-'+str(program['id']),'userid':msg.author.id,'type':'网易电台'})
+    await msg.ctx.channel.send("导入完成")
+    
 @bot.command(name='清空歌单')
 async def listen(msg: Message):
     global playlist
@@ -254,7 +282,7 @@ async def addmusic(msg: Message,*args):
         global playlist
         typ='网易'
         song_name=''
-        if args[0]=='qq' or args[0]=='网易' or args[0]=='b站': 
+        if args[0]=='qq' or args[0]=='网易' or args[0]=='b站'or args[0]=='网易电台': 
             typ=args[0]
             args.pop(0)
             if typ=='qq' and qq_enable == 0:
@@ -429,6 +457,99 @@ async def update_played_time_and_change_music():
                         )
                         return None
                     playtime = 0
+                    kill()
+                    p = subprocess.Popen(
+                        'ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'+config["port"],
+                        shell=True
+                    )
+                    await bot.send(
+                        await bot.fetch_public_channel(
+                            config["channel"]
+                        ),
+                        cm,
+                    )
+                elif playlist[0]['type']=='网易电台':
+                    song_name=song_name.replace(" ", "")
+                    song_name=song_name.split('-')[-1]
+                    print(song_name)
+                    url='http://127.0.0.1:3000/dj/program/detail?id='+song_name
+                    response=requests.get(url=url).json()['program']
+                    duration=int(response['duration']/1000)+5
+                    song_url='https://music.163.com/#/program?id='+song_name
+                    song_name=response['mainSong']['name']
+                    
+                    ban=re.compile('(惊雷)|(Lost Rivers)')
+                    resu=ban.findall(song_name)
+                    print(resu)
+                    if len(resu)>0:
+                        LOCK=False
+                        playlist.pop(0)
+                        await bot.send(
+                            await bot.fetch_public_channel(
+                                config["channel"]
+                            ),
+                            '吃了吗，没吃吃我一拳',
+                        )
+                        return None
+
+                    album_name=response['radio']['name']
+                    if album_name=='':
+                        album_name='无专辑'
+                    album_url='https://music.163.com/#/djradio?id='+str(response['radio']['id'])
+
+                    singer_name=response['dj']['nickname']
+                    singer_url='https://music.163.com/#/user/home?id='+str(response['dj']['userId'])
+                    pic_url=response['radio']['picUrl']
+                    getfile_url='http://127.0.0.1:3000/song/url?id='+str(response['mainSong']['id'])
+                    urlresponse=requests.get(url=getfile_url).json()['data'][0]['url']
+                    print(urlresponse)
+                    if urlresponse==None:
+                        urlresponse=''
+                    if (urlresponse.startswith("http://m702") or urlresponse.startswith("http://m802") or len(urlresponse)==0)and not urlresponse.endswith(".flac"):
+                        getfile_url='http://127.0.0.1:3000/song/download/url?id='+str(response['mainSong']['id'])
+                        urlresponse=requests.get(url=getfile_url).json()['data']['url']
+                        print(urlresponse)
+                    if urlresponse==None:
+                        urlresponse=''
+                    
+                    if (urlresponse.startswith("http://m702") or urlresponse.startswith("http://m802") or len(urlresponse)==0)and not urlresponse.endswith(".flac"):
+                        getfile_url='http://127.0.0.1:3000/song/url?id='+str(response['mainSong']['id'])+'&br=2000000'
+                        urlresponse=requests.get(url=getfile_url).json()['data'][0]['url']
+                        print(urlresponse)
+                    if urlresponse==None:
+                        urlresponse=''
+                    
+                    if (urlresponse.startswith("http://m702") or urlresponse.startswith("http://m802") or len(urlresponse)==0)and not urlresponse.endswith(".flac"):
+                        getfile_url='http://127.0.0.1:3000/song/download/url?id='+str(response['mainSong']['id'])+'&br=2000000'
+                        urlresponse=requests.get(url=getfile_url).json()['data']['url']
+                        print(urlresponse)
+                    if urlresponse==None:
+                        urlresponse=''
+                    musicfile = requests.get(urlresponse)
+                    if urlresponse.endswith("flac"):
+                        open("tmp.flac", "wb").write(musicfile.content)
+                        kill()
+                        p = subprocess.Popen(
+                            'ffmpeg -re -nostats -i "tmp.flac" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'+config["port"],
+                            shell=True
+                        )
+                    else:
+                        open("tmp.mp3", "wb").write(musicfile.content)
+                        kill()
+                        p = subprocess.Popen(
+                            'ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'+config["port"],
+                            shell=True
+                        )
+                    
+                    
+
+                    playtime = 0
+                    
+                    starttime=int(round(time.time() * 1000))
+                    endtime=starttime+int(duration*1000)
+                    cm = [ { "type": "card", "theme": "secondary", "color": "#DD001B", "size": "lg", "modules": [ { "type": "header", "text": { "type": "plain-text", "content": "正在播放：" + song_name, }, }, { "type": "section", "text": { "type": "kmarkdown", "content":"(met)" +playlist[0]['userid']+"(met)", }, }, { "type": "context", "elements": [ { "type": "kmarkdown", "content": "歌手： [" + singer_name + "](" + singer_url + ")  —出自专辑 [" + album_name + "](" + album_url + ")", } ], }, { "type": "audio", "title": song_name, "src": urlresponse, "cover": pic_url, }, {"type": "countdown","mode": "second","startTime": starttime,"endTime": endtime},{"type": "divider"}, { "type": "context", "elements": [ { "type": "image", "src":  "https://img.kaiheila.cn/assets/2022-05/UmCnhm4mlt016016.png", }, { "type": "kmarkdown", "content": "网易云音乐  [在网页查看](" + song_url + ")", }, ], }, ], } ]
+                    print(duration)
+
                     kill()
                     p = subprocess.Popen(
                         'ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'+config["port"],
