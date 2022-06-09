@@ -20,7 +20,7 @@ qq_enable = config["qq_enable"]
 ostype = config["ostype"]
 bot = Bot(token=config["token"])
 playlist = []
-
+p=subprocess.Popen('ffmpeg')
 
 def kill():
     global p
@@ -33,72 +33,117 @@ def kill():
         print(e)
 
 helpcm=[
-    {
-        "type": "card",
-        "theme": "secondary",
-        "size": "lg",
-        "modules": [
-            {
-                "type": "header",
-                "text": {
-                    "type": "plain-text",
-                    "content": "点歌机操作指南"
-                }
-            },
-            {
-                "type": "divider"
-            },
-            {
-                "type": "section",
-                "text": {
-                    "type": "kmarkdown",
-                    "content": "**1.  点歌   +    (平台)    +    歌名**"
-                }
-            },
-            {
-                "type": "section",
-                "text": {
-                    "type": "kmarkdown",
-                    "content": "功能:    将歌曲加到播放队列中\ntips:\n歌名中如果有英文引号等特殊字符，需要将歌名用英文引号括起来\n例如  **点歌 \"Rrhar'il\"**\n如果需要指定歌曲版本播放，可以在歌名后添加歌手\n例如  **点歌 勇敢勇敢-黄勇**\n现支持QQ音乐、网易云音乐与B站，若不写平台则默认从网易云获取数据\n例如  **点歌 qq heavensdoor**\n例如  **点歌 网易 勇敢勇敢-黄勇**\n例如  **点歌 b站 BV1qa411e7Fi**"
-                }
-            },
-            {
-                "type": "section",
-                "text": {
-                    "type": "kmarkdown",
-                    "content": "**2.  下一首**"
-                }
-            },
-            {
-                "type": "section",
-                "text": {
-                    "type": "kmarkdown",
-                    "content": "功能:    跳过当前正播放的歌曲，仅限**有特定角色的用户**使用"
-                }
-            },
-            {
-                "type": "section",
-                "text": {
-                    "type": "kmarkdown",
-                    "content": "**3.  歌单**"
-                }
-            },
-            {
-                "type": "section",
-                "text": {
-                    "type": "kmarkdown",
-                    "content": "功能:    展示播放队列内剩余的歌曲"
-                }
-            },
-            {
-                "type": "section",
-                "text": {
-                    "type": "kmarkdown",
-                    "content": "\n如有其他问题、bug或反馈建议，请私信开发人员：\nnick-haoran#0722      Gunale#2333"
-                }
-            }
+  {
+    "type": "card",
+    "theme": "secondary",
+    "size": "lg",
+    "modules": [
+      {
+        "type": "header",
+        "text": {
+          "type": "plain-text",
+          "content": "点歌机操作指南"
+        }
+      },
+      {
+        "type": "divider"
+      },
+      {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "**1.  点歌   +    (平台)    +    歌名**"
+        }
+      },
+      {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "功能:    将歌曲加到播放队列中\ntips:\n歌名中如果有英文引号等特殊字符，需要将歌名用英文引号括起来\n例如  **点歌 \"Rrhar'il\"**\n如果需要指定歌曲版本播放，可以在歌名后添加歌手\n例如  **点歌 勇敢勇敢-黄勇**\n现支持QQ音乐、网易云音乐与B站，若不写平台则默认从网易云获取数据（QQ音乐需要单独安装api并在config.json中启用平台）\n例如  **点歌 qq heavensdoor**\n例如  **点歌 网易 勇敢勇敢-黄勇**\n例如  **点歌 b站 BV1qa411e7Fi**\n例如  **点歌 你看到的我**"
+        }
+      },
+      {
+        "type": "divider"
+      },
+      {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "**2.  下一首**"
+        }
+      },
+      {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "功能:    跳过当前正播放的歌曲，仅限**有特定角色的用户**使用"
+        }
+      },
+      {
+        "type": "divider"
+      },
+      {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "**3.  歌单**"
+        }
+      },
+      {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "功能:    展示播放队列内剩余的歌曲"
+        }
+      },
+      {
+        "type": "divider"
+      },
+      {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "**4.  导入歌单       +      网易云歌单id**"
+        }
+      },
+      {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "功能:    将网易云歌单中的歌曲导入到播放队列\n例如  **导入歌单 977171340**"
+        }
+      },
+      {
+        "type": "divider"
+      },
+      {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "**5.  清空歌单**"
+        }
+      },
+      {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "功能:    清空播放队列"
+        }
+      },
+      {
+        "type": "divider"
+      },
+      {
+        "type": "context",
+        "elements": [
+          {
+            "type": "plain-text",
+            "content": "如有其他问题、bug或反馈建议，请私信开发人员：\nnick-haoran#0722      Gunale#2333"
+          }
         ]
-    }
+      }
+    ]
+  }
 ]
 def getCidAndTitle(bvid,p=1):
     global duration
@@ -107,7 +152,7 @@ def getCidAndTitle(bvid,p=1):
     data=requests.get(url).json()['data']
     title=data['title']
     cid=data['pages'][p-1]['cid']
-    duration=data['pages'][p-1]['duration']
+    duration=data['pages'][p-1]['duration']+5
     mid=str(data['owner']['mid'])
     name=data['owner']['name']
     pic=data['pic']
@@ -152,6 +197,23 @@ def getAudio(item):
     open("tmp.mp3", "wb").write(response.content)
     return bvid,cid,title,mid,name,pic
 
+@bot.command(name='导入歌单')
+async def listen(msg: Message, linkid : str):
+    global playlist
+    url = "http://127.0.0.1:3000/playlist/track/all?id="+linkid
+    
+    songs = requests.get(url=url).json()["songs"]
+
+    for song in songs:
+        playlist.append({'name':song['name']+"-"+song['ar'][0]['name'],'userid':msg.author.id,'type':'网易'})
+    await msg.ctx.channel.send("导入完成")
+
+@bot.command(name='清空歌单')
+async def listen(msg: Message):
+    global playlist
+    playlist=[]
+    await msg.ctx.channel.send("清空完成")
+    
 @bot.command(name="下一首")
 async def nextmusic(msg: Message):
     global playlist
@@ -214,8 +276,13 @@ async def prtlist(msg: Message):
     c.append(Module.Header('正在播放：'))
     if len(playlist) == 0:
         c.append(Module.Section('无'))
+    i=0
     for item in playlist:
+        if i==10:
+            break
         c.append(Module.Section(item['name']))
+        i+=1
+    c.append(Module.Header('共有'+str(len(playlist))+'首歌'))
     cm.append(c)
     await msg.ctx.channel.send(cm)
 
@@ -267,7 +334,7 @@ async def update_played_time_and_change_music():
                     url='http://127.0.0.1:3000/song/detail?ids='+musicid
 
                     response=requests.get(url=url).json()['songs'][0]
-                    duration=int(response['dt']/1000)
+                    duration=int(response['dt']/1000)+5
                     song_name=response['name']
                     ban=re.compile('(惊雷)|(Lost Rivers)')
                     resu=ban.findall(song_name)
@@ -318,14 +385,14 @@ async def update_played_time_and_change_music():
                     musicfile = requests.get(urlresponse)
                     if urlresponse.endswith("flac"):
                         open("tmp.flac", "wb").write(musicfile.content)
-
+                        kill()
                         p = subprocess.Popen(
                             'ffmpeg -re -nostats -i "tmp.flac" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'+config["port"],
                             shell=True
                         )
                     else:
                         open("tmp.mp3", "wb").write(musicfile.content)
-
+                        kill()
                         p = subprocess.Popen(
                             'ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'+config["port"],
                             shell=True
@@ -362,6 +429,7 @@ async def update_played_time_and_change_music():
                         )
                         return None
                     playtime = 0
+                    kill()
                     p = subprocess.Popen(
                         'ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'+config["port"],
                         shell=True
@@ -388,7 +456,7 @@ async def update_played_time_and_change_music():
                             '吃了吗，没吃吃我一拳',
                         )
                         return None
-                    duration=response['interval']
+                    duration=response['interval']+5
                     song_url='https://y.qq.com/n/ryqq/songDetail/'+response['songmid']
                     album_name=response['albumname']
                     if album_name=='':
@@ -402,14 +470,31 @@ async def update_played_time_and_change_music():
                         'cookie':qq_cookie
                     }
                     if len(qq_cookie)>0:
-                        response=requests.get(url=getfile_url,headers=headers).json()['data']
+                        try:
+                            response=requests.get(url=getfile_url,headers=headers).json()['data']
+                        except:
+                            await bot.send(
+                                await bot.fetch_public_channel(
+                                    config["channel"]
+                                ),
+                                'cookie失效',
+                            )
                     else:
-                        response=requests.get(url=getfile_url).json()['data']
+                        try:
+                            response=requests.get(url=getfile_url).json()['data']
+                        except:
+                            await bot.send(
+                                await bot.fetch_public_channel(
+                                    config["channel"]
+                                ),
+                                'vip歌曲需要cookie',
+                            )
                     musicfile = requests.get(response)
                     open("tmp.mp3", "wb").write(musicfile.content)
                     starttime=int(round(time.time() * 1000))
                     endtime=starttime+int(duration*1000)
                     playtime = 0
+                    kill()
                     p = subprocess.Popen(
                         'ffmpeg -re -nostats -i "tmp.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'+config["port"],
                         shell=True
