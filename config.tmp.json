@@ -1,12 +1,9 @@
 {
-	"token": "",
-	"channel": "2394228955758801",
-	"voiceid": "7395538237423185",
-	"skipper": 439668,
-	"port": "1234",
+	"token1": "",
 	"n_phone": "",
 	"n_passwd": "",
+	"n_cookie": "",
+	"q_id": "",
 	"q_cookie": "",
-	"qq_enable": 0,
-	"ostype": 0
+	"qq_enable": 0
 }
