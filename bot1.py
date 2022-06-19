@@ -67,14 +67,14 @@ helpcm=[
         "type": "section",
         "text": {
           "type": "kmarkdown",
-          "content": "**0.  加入语音**"
+          "content": "**0.  "+botid+"号加入语音**"
         }
       },
       {
         "type": "section",
         "text": {
           "type": "kmarkdown",
-          "content": "功能:    让机器人进到指定的语音频道\n例如  **"+botid+"号加入语音 5357951880099085**"
+          "content": "功能:    让机器人进到你在的语音频道\n例如  **"+botid+"号加入语音**"
         }
       },
       {
@@ -289,7 +289,7 @@ async def start(voice,voiceid,guild):
         voice.handler()
     ])
 @bot.command(name=botid+'号加入语音')
-async def connect(msg: Message,voiceid:str):
+async def connect(msg: Message):
     global playlist
     global p
     global port
@@ -299,7 +299,13 @@ async def connect(msg: Message,voiceid:str):
     if len(voice)==2:
         await msg.ctx.channel.send("播放槽位已满")
         return 
-    await msg.ctx.channel.send("已加入频道")
+    voiceid=await msg.ctx.guild.fetch_joined_channel(msg.author)
+    try:
+        voiceid=voiceid[0].id
+    except:
+        await msg.ctx.channel.send("请先进入一个语音频道或退出重进")
+        return
+    print(voiceid)
     timeout[msg.ctx.guild.id]=0
     LOCK[msg.ctx.guild.id]=False
     playlist[msg.ctx.guild.id]=[]
@@ -307,10 +313,11 @@ async def connect(msg: Message,voiceid:str):
     playtime[msg.ctx.guild.id]=0
     duration[msg.ctx.guild.id]=0
     port[msg.ctx.guild.id]=rtcpport
+    await msg.ctx.channel.send("已加入频道")
     voice[msg.ctx.guild.id] = Voice(config['token'+botid])
     loop = asyncio.get_event_loop()
     loop.run_until_complete(start(voice[msg.ctx.guild.id],voiceid,msg.ctx.guild.id))
-
+    
 async def disconnect(guild):
     global voiceffmpeg
     try:
@@ -586,6 +593,7 @@ async def netease(guild,song_name):
                 ),
                 '发生错误，正在重试',
             )
+        playlist[guild].pop(0)
         duration[guild]=0
         playtime[guild]=0
         LOCK[guild]=False
@@ -801,8 +809,9 @@ async def neteaseradio(guild,song_name):
             await bot.fetch_public_channel(
                 channel[guild]
             ),
-            '发生错误，正在重试',
+            '发生错误，请重试',
         )
+        playlist[guild].pop(0)
         duration[guild]=0
         playtime[guild]=0
         LOCK[guild]=False
