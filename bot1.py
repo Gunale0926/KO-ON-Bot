@@ -1396,11 +1396,6 @@ async def update_played_time_and_change_music():
         del playlist[guild]
 @bot.task.add_interval(minutes=30)
 async def keep_login():
-    url='http://bot.gekj.net/api/v1/online.bot'
-    headers={
-        "UUID": "7df0df10-2148-4090-a4d9-f4de31738bd2"
-        }
-    print(requests.post(headers=headers,url=url).text)
     url='http://127.0.0.1:3000/login/refresh'
     requests.get(url=url)
     url='http://127.0.0.1:3300/user/refresh'
