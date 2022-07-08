@@ -37,6 +37,7 @@ playlist = {'0':[]}#guild list
 port={}#guild port
 p={}#guild process
 deltatime=7
+singleloops={}
 def kill(guild):
     global p
     try:
@@ -74,7 +75,7 @@ helpcm=[
         "type": "section",
         "text": {
           "type": "kmarkdown",
-          "content": "功能:    让机器人进到你在的语音频道\n例如  **"+botid+"号加入语音**"
+          "content": "功能:    让机器人进到你在的语音频道"
         }
       },
       {
@@ -180,6 +181,57 @@ helpcm=[
         "type": "divider"
       },
       {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "**7.  搜索       +       歌名**"
+        }
+      },
+      {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "功能:    从网易云与qq音乐搜索歌曲（qq平台需单独打开）\n例如  **搜索 海阔天空**"
+        }
+      },
+      {
+        "type": "divider"
+      },
+      {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "**8.  单曲循环**"
+        }
+      },
+      {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "功能:    切换单曲循环状态"
+        }
+      },
+      {
+        "type": "divider"
+      },
+      {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "**9.  重新连接**"
+        }
+      },
+      {
+        "type": "section",
+        "text": {
+          "type": "kmarkdown",
+          "content": "功能:    当机器人意外掉出语音后可使用该命令重新连接至语音"
+        }
+      },
+      {
+        "type": "divider"
+      },
+      {
         "type": "context",
         "elements": [
           {
@@ -244,7 +296,28 @@ def getAudio(guild,item):
     return bvid,cid,title,mid,name,pic
 
 @bot.command(name='导入歌单')
-async def listen(msg: Message, linkid : str):
+async def import_netease_playlist(msg: Message, linkid : str):
+    global netease_cookie
+    headers={
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+        'Cache-Control': 'max-age=0',
+        'Connection': 'keep-alive',
+        'Cookie': netease_cookie,
+        'Host': '127.0.0.1:3000',
+        'Referer': 'https://music.163.com',
+        'If-None-Match': 'W/"722-3Oy0PoR7kMdKeuZyLO+S/tZ4B6I"',
+        'sec-ch-ua': '" Not A;Brand";v="99", "Chromium";v="102", "Microsoft Edge";v="102"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': "Windows",
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.63 Safari/537.36 Edg/102.0.1245.33'
+    }
     try:
         global playlist
         offset=0
@@ -254,7 +327,7 @@ async def listen(msg: Message, linkid : str):
             url = "http://127.0.0.1:3000/playlist/track/all?id="+linkid+'&limit=1000&offset='+str(offset*1000)
             offset+=1
             async with aiohttp.ClientSession() as session:
-                async with session.get(url) as r:
+                async with session.get(url,headers=headers) as r:
                     resp_json = await r.json() 
                     songs = resp_json.get("songs",[])
                     if len(songs)==0:
@@ -264,8 +337,68 @@ async def listen(msg: Message, linkid : str):
         await msg.ctx.channel.send("导入完成")
     except:
         pass
+@bot.command(name='导入专辑')
+async def import_netease_album(msg: Message, linkid : str):
+    global netease_cookie
+    headers={
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+        'Cache-Control': 'max-age=0',
+        'Connection': 'keep-alive',
+        'Cookie': netease_cookie,
+        'Host': '127.0.0.1:3000',
+        'Referer': 'https://music.163.com',
+        'If-None-Match': 'W/"722-3Oy0PoR7kMdKeuZyLO+S/tZ4B6I"',
+        'sec-ch-ua': '" Not A;Brand";v="99", "Chromium";v="102", "Microsoft Edge";v="102"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': "Windows",
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.63 Safari/537.36 Edg/102.0.1245.33'
+    }
+    try:
+        global playlist
+        
+        url = "http://127.0.0.1:3000/album?id="+linkid
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url,headers=headers) as r:
+                resp_json = await r.json() 
+                songs = resp_json.get("songs",[])
+
+                for song in songs:
+                        playlist[msg.ctx.guild.id].append({'name':song.get('name','')+"-"+song.get('ar',[])[0].get('name','')+'-'+str(song.get('id')),'userid':msg.author.id,'type':'网易','time':int(round(time.time() * 1000))+1000000000000})
+        await msg.ctx.channel.send("导入完成")
+    except:
+        pass
+
 @bot.command(name='导入电台')
-async def listen(msg: Message, linkid : str):
+async def import_netease_radio(msg: Message, linkid : str):
+    global netease_cookie
+    headers={
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+        'Cache-Control': 'max-age=0',
+        'Connection': 'keep-alive',
+        'Cookie': netease_cookie,
+        'Host': '127.0.0.1:3000',
+        'Referer': 'https://music.163.com',
+        'If-None-Match': 'W/"722-3Oy0PoR7kMdKeuZyLO+S/tZ4B6I"',
+        'sec-ch-ua': '" Not A;Brand";v="99", "Chromium";v="102", "Microsoft Edge";v="102"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': "Windows",
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.63 Safari/537.36 Edg/102.0.1245.33'
+    }
     try:
         global playlist
         offset=0
@@ -273,7 +406,7 @@ async def listen(msg: Message, linkid : str):
             url = "http://127.0.0.1:3000/dj/program?rid="+linkid+"&limit=1000&offset="+str(offset*1000)
             offset+=1
             async with aiohttp.ClientSession() as session:
-                async with session.get(url) as r:
+                async with session.get(url,headers=headers) as r:
                     resp_json = await r.json() 
                     programs = resp_json.get("programs",[])
                     if len(programs)==0:
@@ -306,6 +439,7 @@ async def connect(msg: Message):
         await msg.ctx.channel.send("请先进入一个语音频道或退出重进")
         return
     print(voiceid)
+    singleloops[msg.ctx.guild.id]=False
     timeout[msg.ctx.guild.id]=0
     LOCK[msg.ctx.guild.id]=False
     playlist[msg.ctx.guild.id]=[]
@@ -338,10 +472,11 @@ async def disconnect(guild):
     del LOCK[guild]
     #del playlist[guild]
     del channel[guild]
+    del singleloops[guild]
     del playtime[guild]
     del duration[guild]
     del port[guild]
-    print(1)
+    print(str(guild)+" disconnected")
 async def disconnecthandle(guild):
     await asyncio.wait([disconnect(guild)])
 @bot.command(name='绑定点歌频道')
@@ -352,7 +487,7 @@ async def connect(msg: Message):
     
 
 @bot.command(name='清空歌单')
-async def listen(msg: Message):
+async def clear_playlist(msg: Message):
     try:
         global playlist
         if len(playlist[msg.ctx.guild.id])>0:
@@ -392,7 +527,7 @@ async def addmusic(msg: Message,*args):
         global playlist
         typ='网易'
         song_name=''
-        if args[0]=='qq' or args[0]=='网易' or args[0]=='b站'or args[0]=='网易电台':
+        if args[0]=='qq' or args[0]=='网易' or args[0]=='b站'or args[0]=='网易电台'or args[0]=='咪咕':
             typ=args[0]
             args.pop(0)
             if typ=='qq' and qq_enable == '0':
@@ -404,6 +539,24 @@ async def addmusic(msg: Message,*args):
         await msg.ctx.channel.send("已添加")
     except:
         pass
+
+@bot.command(name="RELOAD")
+async def addmusic(msg: Message):
+    global config
+    global firstlogin
+    try:
+        with open("config.json", "r", encoding="utf-8") as f:
+            configstr = f.read().replace('\\', '!')
+            configtmp = json.loads(configstr)
+            config = {k: v.replace('!', '\\') for k, v in configtmp.items()}
+        firstlogin=True
+        await msg.ctx.channel.send("reload成功")
+    except:
+        await msg.ctx.channel.send("reload失败")
+        
+@bot.command(name="REBOOT"+str(botid))
+async def addmusic(msg: Message):
+    os._exit(0)
 
 @bot.command(name="歌单")
 async def prtlist(msg: Message):
@@ -432,9 +585,121 @@ async def help(msg: Message):
     await msg.ctx.channel.send(helpcm)
 
 @bot.command(name="状态")
-async def help(msg: Message):
+async def status(msg: Message):
     global helpcm
     await msg.ctx.channel.send("已用槽位:"+str(len(voice)))
+@bot.command(name="单曲循环")
+async def singlesongloop(msg: Message):
+    global singleloops
+    try:
+        if singleloops[msg.ctx.guild.id]==False:
+            singleloops[msg.ctx.guild.id]=True
+            await msg.ctx.channel.send('单曲循环已打开')
+        else:
+            singleloops[msg.ctx.guild.id]=False
+            await msg.ctx.channel.send('单曲循环已关闭')
+    except:
+        pass
+@bot.command(name="重新连接")
+async def reconnect(msg: Message):
+    global voiceffmpeg
+    global voice
+    global port
+    global rtcpport
+    voiceid=await msg.ctx.guild.fetch_joined_channel(msg.author)
+    try:
+        voiceid=voiceid[0].id
+    except:
+        await msg.ctx.channel.send("请先进入一个语音频道或退出重进")
+    try:
+        try:
+            process = psutil.Process(voiceffmpeg[msg.ctx.guild.id].pid)
+            for proc in process.children(recursive=True):
+                proc.kill()
+            process.kill()
+        except Exception as e:
+            print(e)
+        voice[msg.ctx.guild.id].is_exit = True
+        del voice[msg.ctx.guild.id]
+        del voiceffmpeg[msg.ctx.guild.id]
+        await msg.ctx.channel.send("已加入频道")
+        voice[msg.ctx.guild.id] = Voice(config['token'+botid])
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(start(voice[msg.ctx.guild.id],voiceid,msg.ctx.guild.id))
+    except Exception as e:
+        print(e)
+@bot.command(name="搜索")
+async def search(msg: Message,*args):
+    global netease_cookie
+    global botid
+    if botid != "1":
+        return
+    headers={
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+        'Cache-Control': 'max-age=0',
+        'Connection': 'keep-alive',
+        'Cookie': netease_cookie,
+        'Host': '127.0.0.1:3000',
+        'Referer': 'https://music.163.com',
+        'If-None-Match': 'W/"722-3Oy0PoR7kMdKeuZyLO+S/tZ4B6I"',
+        'sec-ch-ua': '" Not A;Brand";v="99", "Chromium";v="102", "Microsoft Edge";v="102"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': "Windows",
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.63 Safari/537.36 Edg/102.0.1245.33'
+    }
+    song_name=''
+    for st in args:
+            song_name = song_name + st + " "
+    url="http://127.0.0.1:3000/search?keywords="+song_name+"&limit=5"
+    songs=requests.get(url=url,headers=headers).json()['result']['songs']
+    text='网易云结果:\n'
+    try:
+        for song in songs:
+            text+=song['name']+'-'+song['artists'][0]['name']+'-'+song['album']['name']+'-'+str(song['id'])+'\n'
+    except:
+        text+='无\n'
+
+    if qq_enable== '1':
+        text+='QQ结果:\n'
+        url="http://127.0.0.1:3300/search?key="+song_name+"&pageSize=5"
+        songs=requests.get(url=url).json()['data']['list']
+        try:
+            for song in songs:
+                text+=song['songname']+'-'+song['singer'][0]['name']+'-'+song['albumname']+'\n'
+        except:
+            text+='无\n'
+
+    text+='网易电台结果:\n'
+    url="http://127.0.0.1:3000/search?keywords="+song_name+"&limit=5&type=2000"
+    songs=requests.get(url=url).json()['data']['resources']
+    try:
+        for song in songs:
+            text+=song['baseInfo']['mainSong']['name']+'-'+song['baseInfo']['mainSong']['artists'][0]['name']+'-'+song['resourceId']+'\n'
+    except:
+        text+='无\n'
+
+    text+='咪咕结果:\n'
+    url="http://127.0.0.1:3400/search?keyword="+song_name
+    songs=requests.get(url=url).json()['data']['list']
+    try:
+        i=0
+        for song in songs:
+            i+=1
+            text+=song['name']+'-'+song['artists'][0]['name']+'-'+song['album']['name']+'-'+song['cid']+'\n'
+            if i==5:
+                break
+    except:
+        text+='无\n'
+    await msg.ctx.channel.send(text)
+
+
 async def netease(guild,song_name):
     global deltatime
     global playtime
@@ -448,8 +713,6 @@ async def netease(guild,song_name):
     global LOCK
     LOCK[guild]=True
     try:
-        if playlist[guild][0]['time']>int(round(time.time() * 1000)):
-            song_name=song_name.split('-')[-1]
         headers={
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
                 'Accept-Encoding': 'gzip, deflate, br',
@@ -470,9 +733,14 @@ async def netease(guild,song_name):
                 'Upgrade-Insecure-Requests': '1',
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.63 Safari/537.36 Edg/102.0.1245.33'
             }
-        url="http://127.0.0.1:3000/cloudsearch?keywords="+song_name+"&limit=1"
-        response=requests.get(url=url,headers=headers).json()
-        musicid=str(response['result']['songs'][0]['id'])
+        if playlist[guild][0]['time']>int(round(time.time() * 1000)):
+            song_name=song_name.split('-')[-1]
+            musicid=song_name
+        else:   
+            
+            url="http://127.0.0.1:3000/cloudsearch?keywords="+song_name+"&limit=1"
+            response=requests.get(url=url,headers=headers).json()
+            musicid=str(response['result']['songs'][0]['id'])
 
         url='http://127.0.0.1:3000/song/detail?ids='+musicid
 
@@ -568,7 +836,7 @@ async def netease(guild,song_name):
         playtime[guild] = 0
         if len(song_name)>50:
             song_name=song_name[:50]
-        cm = [ { "type": "card", "theme": "secondary", "color": "#DD001B", "size": "lg", "modules": [ { "type": "header", "text": { "type": "plain-text", "content": "正在播放：" + song_name, }, }, { "type": "section", "text": { "type": "kmarkdown", "content":"(met)" +playlist[guild][0]['userid']+"(met)", }, }, { "type": "context", "elements": [ { "type": "kmarkdown", "content": "歌手： [" + singer_name + "](" + singer_url + ")  —出自专辑 [" + album_name + "](" + album_url + ")", } ], }, { "type": "audio", "title": song_name, "src": urlresponse, "cover": pic_url, }, {"type": "countdown","mode": "second","startTime": starttime,"endTime": endtime},{"type": "divider"}, { "type": "context", "elements": [ { "type": "image", "src":  "https://img.kaiheila.cn/assets/2022-05/UmCnhm4mlt016016.png", }, { "type": "kmarkdown", "content": "网易云音乐  [在网页查看](" + song_url + ")", }, ], }, ], } ]
+        cm = [ { "type": "card", "theme": "secondary", "color": "#DD001B", "size": "lg", "modules": [ { "type": "header", "text": { "type": "plain-text", "content": "正在播放：" + song_name, }, }, { "type": "section", "text": { "type": "kmarkdown", "content":"(met)" +playlist[guild][0]['userid']+"(met)", }, }, { "type": "context", "elements": [ { "type": "kmarkdown", "content": "歌手： [" + singer_name + "](" + singer_url + ")  —出自专辑 [" + album_name + "](" + album_url + ")", } ], }, { "type": "audio", "title": song_name, "src": urlresponse, "cover": pic_url, }, {"type": "countdown","mode": "second","startTime": starttime,"endTime": endtime},{"type": "divider"}, { "type": "context", "elements": [ { "type": "image", "src":  "https://img.kookapp.cn/assets/2022-05/UmCnhm4mlt016016.png", }, { "type": "kmarkdown", "content": "网易云音乐  [在网页查看](" + song_url + ")", }, ], }, ], } ]
         await bot.send(
             await bot.fetch_public_channel(
                 channel[guild]
@@ -794,7 +1062,7 @@ async def neteaseradio(guild,song_name):
 
         starttime=int(round(time.time() * 1000))
         endtime=starttime+int(duration[guild]*1000)
-        cm = [ { "type": "card", "theme": "secondary", "color": "#DD001B", "size": "lg", "modules": [ { "type": "header", "text": { "type": "plain-text", "content": "正在播放：" + song_name, }, }, { "type": "section", "text": { "type": "kmarkdown", "content":"(met)" +playlist[guild][0]['userid']+"(met)", }, }, { "type": "context", "elements": [ { "type": "kmarkdown", "content": "歌手： [" + singer_name + "](" + singer_url + ")  —出自专辑 [" + album_name + "](" + album_url + ")", } ], }, { "type": "audio", "title": song_name, "src": urlresponse, "cover": pic_url, }, {"type": "countdown","mode": "second","startTime": starttime,"endTime": endtime},{"type": "divider"}, { "type": "context", "elements": [ { "type": "image", "src":  "https://img.kaiheila.cn/assets/2022-05/UmCnhm4mlt016016.png", }, { "type": "kmarkdown", "content": "网易云音乐  [在网页查看](" + song_url + ")", }, ], }, ], } ]
+        cm = [ { "type": "card", "theme": "secondary", "color": "#DD001B", "size": "lg", "modules": [ { "type": "header", "text": { "type": "plain-text", "content": "正在播放：" + song_name, }, }, { "type": "section", "text": { "type": "kmarkdown", "content":"(met)" +playlist[guild][0]['userid']+"(met)", }, }, { "type": "context", "elements": [ { "type": "kmarkdown", "content": "歌手： [" + singer_name + "](" + singer_url + ")  —出自专辑 [" + album_name + "](" + album_url + ")", } ], }, { "type": "audio", "title": song_name, "src": urlresponse, "cover": pic_url, }, {"type": "countdown","mode": "second","startTime": starttime,"endTime": endtime},{"type": "divider"}, { "type": "context", "elements": [ { "type": "image", "src":  "https://img.kookapp.cn/assets/2022-05/UmCnhm4mlt016016.png", }, { "type": "kmarkdown", "content": "网易云音乐  [在网页查看](" + song_url + ")", }, ], }, ], } ]
         print(duration)
 
         await bot.send(
@@ -881,15 +1149,17 @@ async def qqmusic(guild,song_name):
                         if not chunk:
                             break
                         f.write(chunk)
+        
         starttime=int(round(time.time() * 1000))
         endtime=starttime+int(duration[guild]*1000)
         playtime[guild] = 0
         kill(guild)
-        p = subprocess.Popen(
-            'ffmpeg -re -nostats -i "'+guild+'.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'+config["port"],
+        
+        p[guild] = subprocess.Popen(
+            'ffmpeg -re -nostats -i "'+guild+'.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'+port[guild],
             shell=True
         )
-        cm = [ { "type": "card", "theme": "secondary", "color": "#DD001B", "size": "lg", "modules": [ { "type": "header", "text": { "type": "plain-text", "content": "正在播放：" + song_name }, }, { "type": "section", "text": { "type": "kmarkdown", "content":"(met)" +playlist[guild][0]['userid']+"(met)", }, }, { "type": "context", "elements": [ { "type": "kmarkdown", "content": "歌手： [" + singer_name + "](" + singer_url + ")  —出自专辑 [" + album_name + "](" + album_url + ")", } ], }, { "type": "audio", "title": song_name, "src": response, "cover": pic_url, }, {"type": "countdown","mode": "second","startTime": starttime,"endTime": endtime},{"type": "divider"}, { "type": "context", "elements": [ { "type": "image", "src": "https://img.kaiheila.cn/assets/2022-06/cqzmClO3Sq07s07x.png/ld", }, { "type": "kmarkdown", "content": "QQ音乐  [在网页查看](" + song_url + ")", }, ], }, ], } ]
+        cm = [ { "type": "card", "theme": "secondary", "color": "#DD001B", "size": "lg", "modules": [ { "type": "header", "text": { "type": "plain-text", "content": "正在播放：" + song_name }, }, { "type": "section", "text": { "type": "kmarkdown", "content":"(met)" +playlist[guild][0]['userid']+"(met)", }, }, { "type": "context", "elements": [ { "type": "kmarkdown", "content": "歌手： [" + singer_name + "](" + singer_url + ")  —出自专辑 [" + album_name + "](" + album_url + ")", } ], }, { "type": "audio", "title": song_name, "src": response, "cover": pic_url, }, {"type": "countdown","mode": "second","startTime": starttime,"endTime": endtime},{"type": "divider"}, { "type": "context", "elements": [ { "type": "image", "src": "https://img.kookapp.cn/assets/2022-06/cqzmClO3Sq07s07x.png", }, { "type": "kmarkdown", "content": "QQ音乐  [在网页查看](" + song_url + ")", }, ], }, ], } ]
         await bot.send(
             await bot.fetch_public_channel(
                 channel[guild]
@@ -911,6 +1181,110 @@ async def qqmusic(guild,song_name):
     LOCK[guild]=False
     return
 
+async def migu(guild,song_name):
+    global deltatime
+    global playtime
+    global playlist
+    global duration
+    global p
+    global LOCK
+    LOCK[guild]=True
+    try:
+        if playlist[guild][0]['time']>int(round(time.time() * 1000)):
+            song_name=song_name.split('-')[-1]
+            musicid=song_name
+        else:   
+            
+            url="http://127.0.0.1:3400/song/find?keyword="+song_name
+            response=requests.get(url=url).json()
+            musicid=str(response['data']['cid'])
+
+        url='http://127.0.0.1:3400/song?cid='+musicid
+
+        response=requests.get(url=url).json()["data"]
+        duration[guild]=response["duration"]+deltatime
+        song_name=response["name"]
+        
+        ban=re.compile('(惊雷)|(Lost Rivers)')
+        resu=ban.findall(song_name)
+        print(resu)
+        if len(resu)>0:
+
+            playlist[guild].pop(0)
+            await bot.send(
+                await bot.fetch_public_channel(
+                    config["channel"]
+                ),
+                '吃了吗，没吃吃我一拳',
+            )
+            duration[guild]=0
+            playtime[guild]=0
+            LOCK[guild]=False
+            return
+        
+        song_url='https://music.migu.cn/v3/music/song/'+response['cid']
+        album_name=response['album']['name']
+        if album_name=='':
+            album_name='无专辑'
+        album_url='https://music.migu.cn/v3/music/album/'+response['album']['id']
+        singer_name=response['artists'][0]['name']
+        singer_url='https://music.migu.cn/v3/music/artist/'+response['artists'][0]['id']
+        pic_url=response["picUrl"]
+        
+        urlresponse=response["320"]
+        
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(urlresponse) as r:
+                with open(guild+".mp3", 'wb') as f:
+                    while True:
+                        chunk = await r.content.read()
+                        if not chunk:
+                            break
+                        f.write(chunk)
+        kill(guild)
+        p[guild] = subprocess.Popen(
+            'ffmpeg -re -nostats -i "'+guild+'.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'+port[guild],
+            shell=True
+        )
+
+        starttime=int(round(time.time() * 1000))
+        endtime=starttime+int(duration[guild]*1000)
+        playtime[guild] = 0
+        if len(song_name)>50:
+            song_name=song_name[:50]
+        cm = [ { "type": "card", "theme": "secondary", "color": "#DD001B", "size": "lg", "modules": [ { "type": "header", "text": { "type": "plain-text", "content": "正在播放：" + song_name, }, }, { "type": "section", "text": { "type": "kmarkdown", "content":"(met)" +playlist[guild][0]['userid']+"(met)", }, }, { "type": "context", "elements": [ { "type": "kmarkdown", "content": "歌手： [" + singer_name + "](" + singer_url + ")  —出自专辑 [" + album_name + "](" + album_url + ")", } ], }, { "type": "audio", "title": song_name, "src": urlresponse, "cover": pic_url, }, {"type": "countdown","mode": "second","startTime": starttime,"endTime": endtime},{"type": "divider"}, { "type": "context", "elements": [ { "type": "image", "src":  "https://img.kookapp.cn/assets/2022-07/dhSP597xJ502s02r.png", }, { "type": "kmarkdown", "content": "咪咕音乐  [在网页查看](" + song_url + ")", }, ], }, ], } ]
+        await bot.send(
+            await bot.fetch_public_channel(
+                channel[guild]
+            ),
+            cm,
+        )
+        playtime[guild] += deltatime
+    except Exception as e:
+        print(str(e))
+        if str(e)=="'songs'":
+            playlist[guild].pop(0)
+            await bot.send(
+                await bot.fetch_public_channel(
+                    channel[guild]
+                ),
+                '未检索到此歌曲',
+            )
+        else:
+            await bot.send(
+                await bot.fetch_public_channel(
+                    channel[guild]
+                ),
+                '发生错误，正在重试',
+            )
+        playlist[guild].pop(0)
+        duration[guild]=0
+        playtime[guild]=0
+        LOCK[guild]=False
+        return
+    LOCK[guild]=False
+    return
 
 @bot.task.add_interval(seconds=deltatime)
 async def update_played_time_and_change_music():
@@ -926,8 +1300,14 @@ async def update_played_time_and_change_music():
     global timeout
     global voice
     global LOCK
+    global singleloops
     if firstlogin==True:
         print('login check')
+        url='http://bot.gekj.net/api/v1/online.bot'
+        headers={
+            "UUID": "7df0df10-2148-4090-a4d9-f4de31738bd2"
+            }
+        print(requests.post(headers=headers,url=url).text)
         url='http://127.0.0.1:3000/login/status?timestamp='
         print(url)
         response=requests.get(url=url).json()
@@ -936,7 +1316,7 @@ async def update_played_time_and_change_music():
             response=response['data']['account']['status']
             if response==-10:
                 url='http://127.0.0.1:3000/login/cellphone?phone='+netease_phone+'&password='+netease_passwd
-                #print(requests.get(url=url).json())
+                print(requests.get(url=url).json())
                 print('网易云登陆成功')
         except:
             url='http://127.0.0.1:3000/login/cellphone?phone='+netease_phone+'&password='+netease_passwd
@@ -966,7 +1346,7 @@ async def update_played_time_and_change_music():
             continue
         if len(playlist[guild]) == 0:
             timeout[guild]+=deltatime
-            if timeout[guild]>30:
+            if timeout[guild]>60:
                 loop = asyncio.get_event_loop()
                 loop.run_until_complete(disconnecthandle(guild))
                 deletelist.append(guild)
@@ -991,11 +1371,15 @@ async def update_played_time_and_change_music():
                     if LOCK[guild]==True:
                         continue
                     tasks.append(asyncio.create_task(neteaseradio(guild,song_name)))
-                else:
+                elif playlist[guild][0]['type']=='qq':
                     if LOCK[guild]==True:
                         continue
                     tasks.append(asyncio.create_task(qqmusic(guild,song_name)))
-                
+                    
+                else:
+                    if LOCK[guild]==True:
+                        continue
+                    tasks.append(asyncio.create_task(migu(guild,song_name)))
                 continue
                     
             else:
@@ -1003,7 +1387,8 @@ async def update_played_time_and_change_music():
                     playtime[guild] += deltatime
                 else:
                     playtime[guild]= 0
-                    playlist[guild].pop(0)
+                    if singleloops[guild]==False:
+                        playlist[guild].pop(0)
     if len(tasks)>0:
         loop = asyncio.get_event_loop()
         loop.run_until_complete(asyncio.wait(tasks))
@@ -1011,6 +1396,11 @@ async def update_played_time_and_change_music():
         del playlist[guild]
 @bot.task.add_interval(minutes=30)
 async def keep_login():
+    url='http://bot.gekj.net/api/v1/online.bot'
+    headers={
+        "UUID": "7df0df10-2148-4090-a4d9-f4de31738bd2"
+        }
+    print(requests.post(headers=headers,url=url).text)
     url='http://127.0.0.1:3000/login/refresh'
     requests.get(url=url)
     url='http://127.0.0.1:3300/user/refresh'
@@ -1028,7 +1418,7 @@ async def voice_Engine(voice,voiceid:str,guild):
     while True:
         if len(voice.rtp_url) != 0:
             rtp_url = voice.rtp_url
-            comm="ffmpeg -re -loglevel level+info -nostats -stream_loop -1 -i zmq:tcp://127.0.0.1:"+rtcpport+" -map 0:a:0 -acodec libopus -ab 128k -filter:a volume=0.15 -ac 2 -ar 48000 -f tee [select=a:f=rtp:ssrc=1357:payload_type=100]"+rtp_url
+            comm="ffmpeg -re -loglevel level+info -nostats -stream_loop -1 -i zmq:tcp://127.0.0.1:"+port[guild]+" -map 0:a:0 -acodec libopus -ab 128k -filter:a volume=0.15 -ac 2 -ar 48000 -f tee [select=a:f=rtp:ssrc=1357:payload_type=100]"+rtp_url
             print(comm)
             voiceffmpeg[guild]=subprocess.Popen(comm,shell=True)
             rtcpport=str(int(rtcpport)+1)
