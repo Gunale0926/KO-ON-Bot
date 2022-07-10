@@ -1,7 +1,8 @@
 import json
+from datetime import datetime, timedelta
 from voiceAPI import Voice
-from khl import Message, Bot
-from khl.card import CardMessage, Card, Module
+from khl import Message, Bot, api, EventTypes, Event
+from khl.card import CardMessage, Card, Module, Element, Types, Struct
 import subprocess
 import requests
 import psutil
@@ -23,6 +24,7 @@ playtime = {}
 LOCK = {}
 channel = {}
 duration = {}
+msgid = {}
 voice = {}
 voiceffmpeg = {}
 timeout = {}
@@ -429,6 +431,7 @@ async def connect(msg: Message):
     global rtcpport
     global channel
     global voice
+    global msgid
     if len(voice)==2:
         await msg.ctx.channel.send("播放槽位已满")
         return 
@@ -445,6 +448,7 @@ async def connect(msg: Message):
     playlist[msg.ctx.guild.id]=[]
     channel[msg.ctx.guild.id]=msg.ctx.channel.id
     playtime[msg.ctx.guild.id]=0
+    msgid[msg.ctx.guild.id]="0"
     duration[msg.ctx.guild.id]=0
     port[msg.ctx.guild.id]=rtcpport
     await msg.ctx.channel.send("已加入频道")
@@ -471,6 +475,7 @@ async def disconnect(guild):
     del voice[guild]
     del LOCK[guild]
     #del playlist[guild]
+    del msgid[msg.ctx.guild.id]
     del channel[guild]
     del singleloops[guild]
     del playtime[guild]
@@ -557,23 +562,27 @@ async def addmusic(msg: Message):
 @bot.command(name="REBOOT"+str(botid))
 async def addmusic(msg: Message):
     os._exit(0)
+    
+def get_playlist(guild):
+    c = Card()
+    c.append(Module.Header('播放队列：'))
+    if len(playlist[guild]) == 0:
+        c.append(Module.Section('无'))
+    i=0
+    for item in playlist[guild]:
+        if i==10:
+            break
+        c.append(Module.Section(item['name']))
+        i+=1
+    c.append(Module.Header('共有'+str(len(playlist[guild]))+'首歌'))
+    return c
 
 @bot.command(name="歌单")
 async def prtlist(msg: Message):
     try:
         global playlist
         cm = CardMessage()
-        c = Card()
-        c.append(Module.Header('正在播放：'))
-        if len(playlist[msg.ctx.guild.id]) == 0:
-            c.append(Module.Section('无'))
-        i=0
-        for item in playlist[msg.ctx.guild.id]:
-            if i==10:
-                break
-            c.append(Module.Section(item['name']))
-            i+=1
-        c.append(Module.Header('共有'+str(len(playlist[msg.ctx.guild.id]))+'首歌'))
+        c=get_playlist(msg.ctx.guild.id)
         cm.append(c)
         await msg.ctx.channel.send(cm)
     except:
@@ -699,6 +708,19 @@ async def search(msg: Message,*args):
         text+='无\n'
     await msg.ctx.channel.send(text)
 
+def delmsg(msg_id):
+    print(msg_id)
+    global config
+    global botid
+    url='https://www.kookapp.cn/api/v3/message/delete'
+    data={
+        "msg_id":str(msg_id)
+    }
+    headers={
+        "Authorization": "Bot "+config['token'+botid]
+        }
+    response=requests.post(url=url,json=data,headers=headers)
+    print(response.text)
 
 async def netease(guild,song_name):
     global deltatime
@@ -830,19 +852,39 @@ async def netease(guild,song_name):
                 'ffmpeg -re -nostats -i "'+guild+'.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'+port[guild],
                 shell=True
             )
-
-        starttime=int(round(time.time() * 1000))
-        endtime=starttime+int(duration[guild]*1000)
         playtime[guild] = 0
         if len(song_name)>50:
             song_name=song_name[:50]
-        cm = [ { "type": "card", "theme": "secondary", "color": "#DD001B", "size": "lg", "modules": [ { "type": "header", "text": { "type": "plain-text", "content": "正在播放：" + song_name, }, }, { "type": "section", "text": { "type": "kmarkdown", "content":"(met)" +playlist[guild][0]['userid']+"(met)", }, }, { "type": "context", "elements": [ { "type": "kmarkdown", "content": "歌手： [" + singer_name + "](" + singer_url + ")  —出自专辑 [" + album_name + "](" + album_url + ")", } ], }, { "type": "audio", "title": song_name, "src": urlresponse, "cover": pic_url, }, {"type": "countdown","mode": "second","startTime": starttime,"endTime": endtime},{"type": "divider"}, { "type": "context", "elements": [ { "type": "image", "src":  "https://img.kookapp.cn/assets/2022-05/UmCnhm4mlt016016.png", }, { "type": "kmarkdown", "content": "网易云音乐  [在网页查看](" + song_url + ")", }, ], }, ], } ]
-        await bot.send(
+        delmsg(msgid[guild])
+        cm = CardMessage()
+        c=get_playlist(guild)
+        cm.append(c)
+        c=Card(
+                    Module.Header("正在播放： "+ song_name),
+                    Module.Context(
+                        Element.Text("歌手： [" + singer_name + "](" + singer_url + ")  —出自专辑 [" + album_name + "](" + album_url + ")",Types.Text.KMD)
+                        ),
+                    
+                    Module.File(Types.File.AUDIO, src=urlresponse, title=song_name, cover=pic_url),
+                    Module.Countdown(datetime.now() + timedelta(seconds=duration[guild]), mode=Types.CountdownMode.SECOND),
+                    Module.Divider(),
+                    Module.Context(
+                        Element.Image(src="https://img.kookapp.cn/assets/2022-05/UmCnhm4mlt016016.png"),
+                        Element.Text("网易云音乐  [在网页查看](" + song_url + ")",Types.Text.KMD)),
+                    Module.ActionGroup(
+                        Element.Button('下一首', 'NEXT', Types.Click.RETURN_VAL),
+                        Element.Button('清空歌单', 'CLEAR', Types.Click.RETURN_VAL),
+                        Element.Button('单曲循环', 'LOOP', Types.Click.RETURN_VAL)
+                        )
+                    
+                )
+        cm.append(c)
+        msgid[guild]=(await bot.send(
             await bot.fetch_public_channel(
                 channel[guild]
             ),
-            cm,
-        )
+            cm
+            ))["msg_id"]
         playtime[guild] += deltatime
     except Exception as e:
         print(str(e))
@@ -887,7 +929,6 @@ async def bili(guild,song_name):
         bvid,cid,title,mid,name,pic=getAudio(guild,item)
         starttime=int(round(time.time() * 1000))
         endtime=starttime+int(duration[guild]*1000)
-        cm=[{"type": "card","theme": "secondary", "color": "#DD001B", "size": "lg","modules": [{"type": "section","text": {"type": "kmarkdown","content": "**标题:        ["+title+"](https://www.bilibili.com/video/"+song_name+"/)**"}},{"type": "section","text": {"type": "kmarkdown","content": "UP:         ["+name+"](https://space.bilibili.com/"+mid+"/)"}},{"type": "container","elements": [{"type": "image","src": pic}]},{"type": "countdown","mode": "second","startTime": starttime,"endTime": endtime}]}]
         print(duration[guild])
         ban=re.compile('(惊雷)|(Lost Rivers)')
         resu=ban.findall(title)
@@ -909,12 +950,37 @@ async def bili(guild,song_name):
             'ffmpeg -re -nostats -i "'+guild+'.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'+port[guild],
             shell=True
         )
-        await bot.send(
+        delmsg(msgid[guild])
+        cm = CardMessage()
+        c=get_playlist(guild)
+        cm.append(c)
+        c=Card(
+                    Module.Context(
+                        Element.Text("**标题:        ["+title+"](https://www.bilibili.com/video/"+song_name+"/)**",Types.Text.KMD)
+                        ),
+                    Module.Context(
+                        Element.Text("UP:         ["+name+"](https://space.bilibili.com/"+mid+"/)",Types.Text.KMD)
+                        ),
+                    
+                    Module.Container(
+                        Element.Image(src=pic)
+                        ),
+                    Module.Countdown(datetime.now() + timedelta(seconds=duration[guild]), mode=Types.CountdownMode.SECOND),
+
+                    Module.ActionGroup(
+                        Element.Button('下一首', 'NEXT', Types.Click.RETURN_VAL),
+                        Element.Button('清空歌单', 'CLEAR', Types.Click.RETURN_VAL),
+                        Element.Button('单曲循环', 'LOOP', Types.Click.RETURN_VAL)
+                        )
+                    
+                )
+        cm.append(c)
+        msgid[guild]=(await bot.send(
             await bot.fetch_public_channel(
                 channel[guild]
             ),
-            cm,
-        )
+            cm
+            ))["msg_id"]
         playtime[guild] += deltatime
     except:
         await bot.send(
@@ -1060,17 +1126,38 @@ async def neteaseradio(guild,song_name):
 
         playtime[guild] = 0
 
-        starttime=int(round(time.time() * 1000))
-        endtime=starttime+int(duration[guild]*1000)
-        cm = [ { "type": "card", "theme": "secondary", "color": "#DD001B", "size": "lg", "modules": [ { "type": "header", "text": { "type": "plain-text", "content": "正在播放：" + song_name, }, }, { "type": "section", "text": { "type": "kmarkdown", "content":"(met)" +playlist[guild][0]['userid']+"(met)", }, }, { "type": "context", "elements": [ { "type": "kmarkdown", "content": "歌手： [" + singer_name + "](" + singer_url + ")  —出自专辑 [" + album_name + "](" + album_url + ")", } ], }, { "type": "audio", "title": song_name, "src": urlresponse, "cover": pic_url, }, {"type": "countdown","mode": "second","startTime": starttime,"endTime": endtime},{"type": "divider"}, { "type": "context", "elements": [ { "type": "image", "src":  "https://img.kookapp.cn/assets/2022-05/UmCnhm4mlt016016.png", }, { "type": "kmarkdown", "content": "网易云音乐  [在网页查看](" + song_url + ")", }, ], }, ], } ]
-        print(duration)
-
-        await bot.send(
+        
+        delmsg(msgid[guild])
+        cm = CardMessage()
+        c=get_playlist(guild)
+        cm.append(c)
+        c=Card(
+                    Module.Header("正在播放： "+ song_name),
+                    Module.Context(
+                        Element.Text("歌手： [" + singer_name + "](" + singer_url + ")  —出自专辑 [" + album_name + "](" + album_url + ")",Types.Text.KMD)
+                        ),
+                    
+                    Module.File(Types.File.AUDIO, src=urlresponse, title=song_name, cover=pic_url),
+                    Module.Countdown(datetime.now() + timedelta(seconds=duration[guild]), mode=Types.CountdownMode.SECOND),
+                    Module.Divider(),
+                    Module.Context(
+                        Element.Image(src="https://img.kookapp.cn/assets/2022-05/UmCnhm4mlt016016.png"),
+                        Element.Text("网易云音乐  [在网页查看](" + song_url + ")",Types.Text.KMD)),
+                    Module.ActionGroup(
+                        Element.Button('下一首', 'NEXT', Types.Click.RETURN_VAL),
+                        Element.Button('清空歌单', 'CLEAR', Types.Click.RETURN_VAL),
+                        Element.Button('单曲循环', 'LOOP', Types.Click.RETURN_VAL)
+                        )
+                    
+                )
+        cm.append(c)
+        print(json.dumps(cm))
+        msgid[guild]=(await bot.send(
             await bot.fetch_public_channel(
                 channel[guild]
             ),
-            cm,
-        )
+            cm
+            ))["msg_id"]
         playtime[guild] += deltatime
     except:
         await bot.send(
@@ -1128,7 +1215,7 @@ async def qqmusic(guild,song_name):
         pic_url='https://y.gtimg.cn/music/photo_new/T002R300x300M000'+response['albummid']+'.jpg'
         getfile_url='http://127.0.0.1:3300/song/url?id='+response['songmid']+'&mediaId='+response['strMediaMid']+'&ownCookie=1'
         try:
-            response=requests.get(url=getfile_url).json()['data']
+            urlresponse=requests.get(url=getfile_url).json()['data']
         except:
             await bot.send(
                 await bot.fetch_public_channel(
@@ -1142,7 +1229,7 @@ async def qqmusic(guild,song_name):
             LOCK[guild]=False
             return
         async with aiohttp.ClientSession() as session:
-            async with session.get(response) as r:
+            async with session.get(urlresponse) as r:
                 with open(guild+".mp3", 'wb') as f:
                     while True:
                         chunk = await r.content.read()
@@ -1150,8 +1237,6 @@ async def qqmusic(guild,song_name):
                             break
                         f.write(chunk)
         
-        starttime=int(round(time.time() * 1000))
-        endtime=starttime+int(duration[guild]*1000)
         playtime[guild] = 0
         kill(guild)
         
@@ -1159,15 +1244,39 @@ async def qqmusic(guild,song_name):
             'ffmpeg -re -nostats -i "'+guild+'.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'+port[guild],
             shell=True
         )
-        cm = [ { "type": "card", "theme": "secondary", "color": "#DD001B", "size": "lg", "modules": [ { "type": "header", "text": { "type": "plain-text", "content": "正在播放：" + song_name }, }, { "type": "section", "text": { "type": "kmarkdown", "content":"(met)" +playlist[guild][0]['userid']+"(met)", }, }, { "type": "context", "elements": [ { "type": "kmarkdown", "content": "歌手： [" + singer_name + "](" + singer_url + ")  —出自专辑 [" + album_name + "](" + album_url + ")", } ], }, { "type": "audio", "title": song_name, "src": response, "cover": pic_url, }, {"type": "countdown","mode": "second","startTime": starttime,"endTime": endtime},{"type": "divider"}, { "type": "context", "elements": [ { "type": "image", "src": "https://img.kookapp.cn/assets/2022-06/cqzmClO3Sq07s07x.png", }, { "type": "kmarkdown", "content": "QQ音乐  [在网页查看](" + song_url + ")", }, ], }, ], } ]
-        await bot.send(
+        delmsg(msgid[guild])
+        cm = CardMessage()
+        c=get_playlist(guild)
+        cm.append(c)
+        c=Card(
+                    Module.Header("正在播放： "+ song_name),
+                    Module.Context(
+                        Element.Text("歌手： [" + singer_name + "](" + singer_url + ")  —出自专辑 [" + album_name + "](" + album_url + ")",Types.Text.KMD)
+                        ),
+                    
+                    Module.File(Types.File.AUDIO, src=urlresponse, title=song_name, cover=pic_url),
+                    Module.Countdown(datetime.now() + timedelta(seconds=duration[guild]), mode=Types.CountdownMode.SECOND),
+                    Module.Divider(),
+                    Module.Context(
+                        Element.Image(src="https://img.kookapp.cn/assets/2022-06/cqzmClO3Sq07s07x.png"),
+                        Element.Text("QQ音乐  [在网页查看](" + song_url + ")",Types.Text.KMD)),
+                    Module.ActionGroup(
+                        Element.Button('下一首', 'NEXT', Types.Click.RETURN_VAL),
+                        Element.Button('清空歌单', 'CLEAR', Types.Click.RETURN_VAL),
+                        Element.Button('单曲循环', 'LOOP', Types.Click.RETURN_VAL)
+                        )
+                    
+                )
+        cm.append(c)
+        msgid[guild]=(await bot.send(
             await bot.fetch_public_channel(
                 channel[guild]
             ),
-            cm,
-        )
+            cm
+            ))["msg_id"]
         playtime[guild] += deltatime
-    except:
+    except Exception as e:
+        print(str(e))
         await bot.send(
             await bot.fetch_public_channel(
                 channel[guild]
@@ -1248,18 +1357,39 @@ async def migu(guild,song_name):
             shell=True
         )
 
-        starttime=int(round(time.time() * 1000))
-        endtime=starttime+int(duration[guild]*1000)
         playtime[guild] = 0
         if len(song_name)>50:
             song_name=song_name[:50]
-        cm = [ { "type": "card", "theme": "secondary", "color": "#DD001B", "size": "lg", "modules": [ { "type": "header", "text": { "type": "plain-text", "content": "正在播放：" + song_name, }, }, { "type": "section", "text": { "type": "kmarkdown", "content":"(met)" +playlist[guild][0]['userid']+"(met)", }, }, { "type": "context", "elements": [ { "type": "kmarkdown", "content": "歌手： [" + singer_name + "](" + singer_url + ")  —出自专辑 [" + album_name + "](" + album_url + ")", } ], }, { "type": "audio", "title": song_name, "src": urlresponse, "cover": pic_url, }, {"type": "countdown","mode": "second","startTime": starttime,"endTime": endtime},{"type": "divider"}, { "type": "context", "elements": [ { "type": "image", "src":  "https://img.kookapp.cn/assets/2022-07/dhSP597xJ502s02r.png", }, { "type": "kmarkdown", "content": "咪咕音乐  [在网页查看](" + song_url + ")", }, ], }, ], } ]
-        await bot.send(
+        delmsg(msgid[guild])
+        cm = CardMessage()
+        c=get_playlist(guild)
+        cm.append(c)
+        c=Card(
+                    Module.Header("正在播放： "+ song_name),
+                    Module.Context(
+                        Element.Text("歌手： [" + singer_name + "](" + singer_url + ")  —出自专辑 [" + album_name + "](" + album_url + ")",Types.Text.KMD)
+                        ),
+                    
+                    Module.File(Types.File.AUDIO, src=urlresponse, title=song_name, cover=pic_url),
+                    Module.Countdown(datetime.now() + timedelta(seconds=duration[guild]), mode=Types.CountdownMode.SECOND),
+                    Module.Divider(),
+                    Module.Context(
+                        Element.Image(src="https://img.kookapp.cn/assets/2022-07/dhSP597xJ502s02r.png"),
+                        Element.Text("咪咕音乐  [在网页查看](" + song_url + ")",Types.Text.KMD)),
+                    Module.ActionGroup(
+                        Element.Button('下一首', 'NEXT', Types.Click.RETURN_VAL),
+                        Element.Button('清空歌单', 'CLEAR', Types.Click.RETURN_VAL),
+                        Element.Button('单曲循环', 'LOOP', Types.Click.RETURN_VAL)
+                        )
+                    
+                )
+        cm.append(c)
+        msgid[guild]=(await bot.send(
             await bot.fetch_public_channel(
                 channel[guild]
             ),
-            cm,
-        )
+            cm
+            ))["msg_id"]
         playtime[guild] += deltatime
     except Exception as e:
         print(str(e))
@@ -1302,12 +1432,8 @@ async def update_played_time_and_change_music():
     global LOCK
     global singleloops
     if firstlogin==True:
+        print("id:"+botid)
         print('login check')
-        url='http://bot.gekj.net/api/v1/online.bot'
-        headers={
-            "UUID": "7df0df10-2148-4090-a4d9-f4de31738bd2"
-            }
-        print(requests.post(headers=headers,url=url).text)
         url='http://127.0.0.1:3000/login/status?timestamp='
         print(url)
         response=requests.get(url=url).json()
@@ -1347,6 +1473,7 @@ async def update_played_time_and_change_music():
         if len(playlist[guild]) == 0:
             timeout[guild]+=deltatime
             if timeout[guild]>60:
+                delmsg(msgid[guild])
                 loop = asyncio.get_event_loop()
                 loop.run_until_complete(disconnecthandle(guild))
                 deletelist.append(guild)
@@ -1396,13 +1523,60 @@ async def update_played_time_and_change_music():
         del playlist[guild]
 @bot.task.add_interval(minutes=30)
 async def keep_login():
+    url='http://bot.gekj.net/api/v1/online.bot'
+    headers={
+        "UUID": "7df0df10-2148-4090-a4d9-f4de31738bd2"
+        }
+    print(requests.post(headers=headers,url=url).text)
     url='http://127.0.0.1:3000/login/refresh'
     requests.get(url=url)
     url='http://127.0.0.1:3300/user/refresh'
     requests.get(url=url)
     print('刷新登录')
 
-bot.command.update_prefixes("")
+@bot.on_event(EventTypes.MESSAGE_BTN_CLICK)
+async def print_btn_value(_: Bot, e: Event):
+    print(f'''{e.body['user_info']['nickname']} took the {e.body['value']} pill''')
+    print(e.body["guild_id"])
+    global playlist
+    global playtime
+    global duration
+    global singleloops
+    guild=e.body["guild_id"]
+    if e.body['value']=="NEXT":
+        try:
+            
+            
+            kill(guild)
+            if len(playlist[guild])==0:
+
+                return None
+            playlist[guild].pop(0)
+            LOCK[guild]=False
+            playtime[guild]=0
+            duration[guild]=0
+        except:
+            pass
+    if e.body['value']=="CLEAR":
+        try:
+            if len(playlist[guild])>0:
+                now=playlist[guild][0]
+                playlist[guild]=[]
+                playlist[guild].append(now)
+            await bot.send(await bot.fetch_public_channel(channel[guild]),"清空完成")
+        except:
+            pass
+    if e.body['value']=="LOOP":
+        
+        try:
+            if singleloops[guild]==False:
+                singleloops[guild]=True
+                await bot.send(await bot.fetch_public_channel(channel[guild]),'单曲循环已打开')
+            else:
+                singleloops[guild]=False
+                await bot.send(await bot.fetch_public_channel(channel[guild]),'单曲循环已关闭')
+        except:
+            pass
 
 async def voice_Engine(voice,voiceid:str,guild):
     global rtcpport
@@ -1419,5 +1593,5 @@ async def voice_Engine(voice,voiceid:str,guild):
             rtcpport=str(int(rtcpport)+1)
             break
         await asyncio.sleep(0.1)
-    
+bot.command.update_prefixes("")
 bot.run()
