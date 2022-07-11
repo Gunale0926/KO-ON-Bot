@@ -475,7 +475,7 @@ async def disconnect(guild):
     del voice[guild]
     del LOCK[guild]
     #del playlist[guild]
-    del msgid[msg.ctx.guild.id]
+    del msgid[guild]
     del channel[guild]
     del singleloops[guild]
     del playtime[guild]
