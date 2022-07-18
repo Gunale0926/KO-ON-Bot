@@ -30,6 +30,7 @@ A Music Player for Kaiheila.cn
 
 ### 2. 填写 q_id（可选）
 1. 在 `q_id` 处填写QQ号
+2. 在项目文件夹/QQMusic/bin这个路径下找到config.js，用记事本打开，将qq字段中123456789的改成你的QQ号
 
 ### 3. 填写 n_phone
 1. 在 `n_phone` 处填写网易云音乐的登录账号
