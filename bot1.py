@@ -7,11 +7,10 @@ import signal
 import time
 
 import aiohttp
-import nest_asyncio
 import psutil
 from aiohttp import TCPConnector
-from khl import Bot, Event, EventTypes, Message, api
-from khl.card import Card, CardMessage, Element, Module, Struct, Types
+from khl import Bot, Event, EventTypes, Message
+from khl.card import CardMessage
 
 from music_manage import (bili, fm, kmusic, migu, netease, neteaseradio,
                           qqmusic, ytb)
@@ -28,7 +27,6 @@ try:
     print("platform:linux")
 except:
     print("platform:windows")
-nest_asyncio.apply()
 botid = os.path.basename(__file__).split(".")[0].replace('bot', '')
 config = load_config()
 rtcpport = botid + '234'
@@ -171,7 +169,6 @@ async def import_playlist(msg: Message, linkid: str):
                         headers=headers,
                         timeout=aiohttp.ClientTimeout(total=5)) as r:
                     resp_json = await r.json()
-                    print
                     songs = resp_json.get("songs", [])
                     if len(songs) == 0:
                         break
@@ -611,7 +608,7 @@ async def reload(msg: Message):
 
 
 @bot.command(name="REBOOT" + str(botid))
-async def reboot(msg: Message):
+async def reboot():
     os._exit(0)
 
 
@@ -850,7 +847,7 @@ async def update_played_time_and_change_music():
 
     deletelist = []
     savetag = False
-    for guild, songlist in playlist.items():
+    for guild in playlist.items():
 
         if channel.get(guild, -1) == -1 or timeout.get(
                 guild, -1) == -1 or voiceffmpeg.get(guild, -1) == -1:
@@ -1081,8 +1078,8 @@ async def on_btn_clicked(_: Bot, e: Event):
 
 @bot.on_event(EventTypes.EXITED_CHANNEL)
 async def on_exit_voice(_: Bot, e: Event):
+    guild = e.target_id
     try:
-        guild = e.target_id
         while LOCK[guild]:
             await asyncio.sleep(0.1)
         LOCK[guild] = True
@@ -1095,9 +1092,9 @@ async def on_exit_voice(_: Bot, e: Event):
         tmp.insert(0, now)
         playlist[guild] = tmp
         LOCK[guild] = False
-    except Exception as e:
+    except Exception as err:
         LOCK[guild] = False
-        print(str(e))
+        print(str(err))
 
 
 bot.command.update_prefixes("")
