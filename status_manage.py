@@ -7,7 +7,7 @@ import re
 from voiceAPI import Voice
 from khl import Bot, Event, EventTypes, Message, api
 from khl.card import Card, CardMessage, Element, Module, Struct, Types
-
+from aiohttp import TCPConnector
 
 def get_helpcm(botid):
     helpcm = [{
@@ -205,7 +205,7 @@ def get_helpcm(botid):
 
 async def getCidAndTitle(duration, deltatime, guild, bvid, p=1):
     url = 'https://api.bilibili.com/x/web-interface/view?bvid=' + bvid
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
         async with session.get(url=url,
                                timeout=aiohttp.ClientTimeout(total=5)) as r:
             data = (await r.json())['data']
@@ -245,7 +245,7 @@ async def getAudio(guild, item, botid):
     bvid, cid, title, mid, name, pic = item[0], item[1], item[2], item[
         3], item[4], item[5]
     url = baseUrl + 'bvid=' + bvid + '&cid=' + cid
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
         async with session.get(url=url,
                                timeout=aiohttp.ClientTimeout(total=5)) as r:
             audioUrl = (await r.json())['data']['dash']['audio'][0]['baseUrl']
@@ -261,7 +261,7 @@ async def getAudio(guild, item, botid):
         'Origin': 'https://www.bilibili.com',
         'Connection': 'keep-alive'
     }
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
         async with session.get(url=audioUrl,
                                headers=headers,
                                timeout=aiohttp.ClientTimeout(total=5)) as r:
@@ -311,7 +311,7 @@ async def delmsg(msg_id, config, botid):
     url = 'https://www.kookapp.cn/api/v3/message/delete'
     data = {"msg_id": str(msg_id)}
     headers = {"Authorization": "Bot " + config['token' + botid]}
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
         async with session.post(url=url,
                                 data=data,
                                 headers=headers,
@@ -337,7 +337,7 @@ async def status_active_music(slot, config, botid):
         "singer": "KO-ON",
         "music_name": "已用槽位:" + slot
     }
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
         async with session.post(url=url, data=params, headers=headers) as r:
             return json.loads(await r.text())
 
@@ -349,7 +349,7 @@ async def login(botid, qq_enable, netease_phone, netease_passwd, qq_cookie,
     print(await status_active_music(str(len(voice)), config, botid))
     url = 'http://127.0.0.1:3000/login/status?timestamp='
     print(url)
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
         async with session.get(url=url,
                                timeout=aiohttp.ClientTimeout(total=5)) as r:
             response = await r.json()
@@ -358,21 +358,22 @@ async def login(botid, qq_enable, netease_phone, netease_passwd, qq_cookie,
         response = response['data']['account']['status']
         if response == -10:
             url = 'http://127.0.0.1:3000/login/cellphone?phone=' + netease_phone + '&password=' + netease_passwd
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
                 async with session.get(
                         url=url, timeout=aiohttp.ClientTimeout(total=5)) as r:
                     print(await r.text())
             print('网易云登陆成功')
     except:
         url = 'http://127.0.0.1:3000/login/cellphone?phone=' + netease_phone + '&password=' + netease_passwd
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
             async with session.get(
-                    url=url, timeout=aiohttp.ClientTimeout(total=5)) as r:
+                    url=url, timeout=aiohttp.ClientTimeout(total=5)
+                    ) as r:
                 print(await r.text())
         print('网易云登陆成功')
     print('网易已登录')
     url = 'http://127.0.0.1:3000/login/refresh'
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
         async with session.get(url=url,
                                timeout=aiohttp.ClientTimeout(total=5)) as r:
             print(await r.text())
@@ -380,14 +381,14 @@ async def login(botid, qq_enable, netease_phone, netease_passwd, qq_cookie,
     if qq_enable == "1":
         url = 'http://127.0.0.1:3300/user/setCookie'
         data = {"data": qq_cookie}
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
             async with session.post(
                     url=url, data=data,
                     timeout=aiohttp.ClientTimeout(total=5)) as r:
                 print(await r.text())
         url = 'http://127.0.0.1:3300/user/getCookie?id=' + qq_id
 
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
             async with session.get(
                     url=url, timeout=aiohttp.ClientTimeout(total=5)) as r:
                 print(await r.text())
@@ -484,7 +485,6 @@ async def disconnect(guild, voice, timeout, voiceffmpeg, LOCK, msgid,
     del voiceffmpeg[guild]
     del voice[guild]
     del LOCK[guild]
-    #del playlist[guild]
     del msgid[guild]
     del voicechannelid[guild]
     del channel[guild]
