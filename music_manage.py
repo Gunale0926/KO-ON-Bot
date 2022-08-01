@@ -8,6 +8,7 @@ from status_manage import kill, delmsg, start_play, get_playlist, parse_kmd_to_u
 from khl import Bot, Event, EventTypes, Message, api
 from khl.card import Card, CardMessage, Element, Module, Struct, Types
 from pytube import YouTube
+from aiohttp import TCPConnector
 
 
 async def netease(guild, song_name, LOCK, netease_cookie, playlist, duration,
@@ -58,7 +59,8 @@ async def netease(guild, song_name, LOCK, netease_cookie, playlist, duration,
             musicid = song_name
         else:
             url = "http://127.0.0.1:3000/cloudsearch?keywords=" + song_name + "&limit=1"
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=TCPConnector(
+                    verify_ssl=False)) as session:
                 async with session.get(
                         url=url,
                         headers=headers,
@@ -67,7 +69,8 @@ async def netease(guild, song_name, LOCK, netease_cookie, playlist, duration,
             musicid = str(response['result']['songs'][0]['id'])
 
         url = 'http://127.0.0.1:3000/song/detail?ids=' + musicid
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=TCPConnector(
+                verify_ssl=False)) as session:
             async with session.get(
                     url=url,
                     headers=headers,
@@ -104,14 +107,15 @@ async def netease(guild, song_name, LOCK, netease_cookie, playlist, duration,
             response['id']) + '&br=320000&timestamp=' + str(
                 int(round(time.time() * 1000)))
 
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=TCPConnector(
+                verify_ssl=False)) as session:
             async with session.get(
                     url=getfile_url,
                     headers=headers,
                     timeout=aiohttp.ClientTimeout(total=5)) as r:
                 urlresponse = (await r.json())['data'][0]['url']
         print(urlresponse)
-        if urlresponse == None:
+        if urlresponse is None:
             urlresponse = ''
 
         if (urlresponse.startswith("http://m702")
@@ -120,14 +124,15 @@ async def netease(guild, song_name, LOCK, netease_cookie, playlist, duration,
             getfile_url = 'http://127.0.0.1:3000/song/download/url?id=' + str(
                 response['id']) + '&br=320000&timestamp=' + str(
                     int(round(time.time() * 1000)))
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=TCPConnector(
+                    verify_ssl=False)) as session:
                 async with session.get(
                         url=getfile_url,
                         headers=headers,
                         timeout=aiohttp.ClientTimeout(total=5)) as r:
                     urlresponse = (await r.json())['data']['url']
             print(urlresponse)
-        if urlresponse == None:
+        if urlresponse is None:
             urlresponse = ''
 
         if (urlresponse.startswith("http://m702")
@@ -135,14 +140,15 @@ async def netease(guild, song_name, LOCK, netease_cookie, playlist, duration,
                 == 0) and (not urlresponse.endswith(".flac")):
             getfile_url = 'http://127.0.0.1:3000/song/url?id=' + str(
                 response['id']) + '&br=320000'
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=TCPConnector(
+                    verify_ssl=False)) as session:
                 async with session.get(
                         url=getfile_url,
                         headers=headers,
                         timeout=aiohttp.ClientTimeout(total=5)) as r:
                     urlresponse = (await r.json())['data'][0]['url']
             print(urlresponse)
-        if urlresponse == None:
+        if urlresponse is None:
             urlresponse = ''
 
         if (urlresponse.startswith("http://m702")
@@ -150,18 +156,20 @@ async def netease(guild, song_name, LOCK, netease_cookie, playlist, duration,
                 == 0) and (not urlresponse.endswith(".flac")):
             getfile_url = 'http://127.0.0.1:3000/song/download/url?id=' + str(
                 response['id']) + '&br=320000'
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=TCPConnector(
+                    verify_ssl=False)) as session:
                 async with session.get(
                         url=getfile_url,
                         headers=headers,
                         timeout=aiohttp.ClientTimeout(total=5)) as r:
                     urlresponse = (await r.json())['data']['url']
             print(urlresponse)
-        if urlresponse == None:
+        if urlresponse is None:
             urlresponse = ''
 
         if urlresponse.endswith("flac"):
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=TCPConnector(
+                    verify_ssl=False)) as session:
                 async with session.get(
                         urlresponse,
                         timeout=aiohttp.ClientTimeout(total=5)) as r:
@@ -178,7 +186,8 @@ async def netease(guild, song_name, LOCK, netease_cookie, playlist, duration,
                 + port[guild],
                 shell=True)
         else:
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=TCPConnector(
+                    verify_ssl=False)) as session:
                 async with session.get(
                         urlresponse,
                         timeout=aiohttp.ClientTimeout(total=5)) as r:
@@ -255,7 +264,6 @@ async def bili(guild, song_name, LOCK, playlist, duration, deltatime, bot,
         guild, item = await getInformation(duration, deltatime, song_name,
                                            guild)
         bvid, cid, title, mid, name, pic = await getAudio(guild, item, botid)
-        starttime = int(round(time.time() * 1000))
         print(duration[guild])
         ban = re.compile('(惊雷)|(Lost Rivers)')
         resu = ban.findall(title)
@@ -372,7 +380,8 @@ async def neteaseradio(guild, song_name, LOCK, netease_cookie, playlist,
         song_name = song_name.split('-')[-1]
         print(song_name)
         url = 'http://127.0.0.1:3000/dj/program/detail?id=' + song_name
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=TCPConnector(
+                verify_ssl=False)) as session:
             async with session.get(
                     url=url,
                     headers=headers,
@@ -420,28 +429,30 @@ async def neteaseradio(guild, song_name, LOCK, netease_cookie, playlist,
         pic_url = response['radio']['picUrl']
         getfile_url = 'http://127.0.0.1:3000/song/url?id=' + str(
             response['mainSong']['id']) + '&br=320000'
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=TCPConnector(
+                verify_ssl=False)) as session:
             async with session.get(
                     url=getfile_url,
                     headers=headers,
                     timeout=aiohttp.ClientTimeout(total=5)) as r:
                 urlresponse = (await r.json())['data'][0]['url']
         print(urlresponse)
-        if urlresponse == None:
+        if urlresponse is None:
             urlresponse = ''
         if (urlresponse.startswith("http://m702")
                 or urlresponse.startswith("http://m802") or len(urlresponse)
                 == 0) and not urlresponse.endswith(".flac"):
             getfile_url = 'http://127.0.0.1:3000/song/download/url?id=' + str(
                 response['mainSong']['id']) + '&br=320000'
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=TCPConnector(
+                    verify_ssl=False)) as session:
                 async with session.get(
                         url=getfile_url,
                         headers=headers,
                         timeout=aiohttp.ClientTimeout(total=5)) as r:
                     urlresponse = (await r.json())['data']['url']
             print(urlresponse)
-        if urlresponse == None:
+        if urlresponse is None:
             urlresponse = ''
 
         if (urlresponse.startswith("http://m702")
@@ -449,14 +460,15 @@ async def neteaseradio(guild, song_name, LOCK, netease_cookie, playlist,
                 == 0) and not urlresponse.endswith(".flac"):
             getfile_url = 'http://127.0.0.1:3000/song/url?id=' + str(
                 response['mainSong']['id']) + '&br=320000'
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=TCPConnector(
+                    verify_ssl=False)) as session:
                 async with session.get(
                         url=getfile_url,
                         headers=headers,
                         timeout=aiohttp.ClientTimeout(total=5)) as r:
                     urlresponse = (await r.json())['data'][0]['url']
             print(urlresponse)
-        if urlresponse == None:
+        if urlresponse is None:
             urlresponse = ''
 
         if (urlresponse.startswith("http://m702")
@@ -464,31 +476,34 @@ async def neteaseradio(guild, song_name, LOCK, netease_cookie, playlist,
                 == 0) and not urlresponse.endswith(".flac"):
             getfile_url = 'http://127.0.0.1:3000/song/download/url?id=' + str(
                 response['mainSong']['id']) + '&br=320000'
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=TCPConnector(
+                    verify_ssl=False)) as session:
                 async with session.get(
                         url=getfile_url,
                         headers=headers,
                         timeout=aiohttp.ClientTimeout(total=5)) as r:
                     urlresponse = (await r.json())['data']['url']
             print(urlresponse)
-        if urlresponse == None:
+        if urlresponse is None:
             urlresponse = ''
         if (urlresponse.startswith("http://m702")
                 or urlresponse.startswith("http://m802") or len(urlresponse)
                 == 0) and not urlresponse.endswith(".flac"):
             getfile_url = 'http://127.0.0.1:3000/song/url?id=' + str(
                 response['mainSong']['id']) + '?timestamp='
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=TCPConnector(
+                    verify_ssl=False)) as session:
                 async with session.get(
                         url=getfile_url,
                         headers=headers,
                         timeout=aiohttp.ClientTimeout(total=5)) as r:
                     urlresponse = (await r.json())['data'][0]['url']
             print(urlresponse)
-        if urlresponse == None:
+        if urlresponse is None:
             urlresponse = ''
         if urlresponse.endswith("flac"):
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=TCPConnector(
+                    verify_ssl=False)) as session:
                 async with session.get(
                         urlresponse,
                         timeout=aiohttp.ClientTimeout(total=5)) as r:
@@ -505,7 +520,8 @@ async def neteaseradio(guild, song_name, LOCK, netease_cookie, playlist,
                 + port[guild],
                 shell=True)
         else:
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=TCPConnector(
+                    verify_ssl=False)) as session:
                 async with session.get(
                         urlresponse,
                         timeout=aiohttp.ClientTimeout(total=5)) as r:
@@ -577,14 +593,16 @@ async def qqmusic(guild, song_name, LOCK, playlist, duration, deltatime, bot,
             musicid = song_name
         else:
             url = "http://127.0.0.1:3300/search/quick?key=" + song_name
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=TCPConnector(
+                    verify_ssl=False)) as session:
                 async with session.get(
                         url=url, timeout=aiohttp.ClientTimeout(total=5)) as r:
                     response = (await r.json())['data']['song']['itemlist'][0]
             musicid = response['mid']
 
         url = "http://127.0.0.1:3300/song?songmid=" + musicid
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=TCPConnector(
+                verify_ssl=False)) as session:
             async with session.get(
                     url=url, timeout=aiohttp.ClientTimeout(total=5)) as r:
                 response = (await r.json())['data']['track_info']
@@ -618,7 +636,8 @@ async def qqmusic(guild, song_name, LOCK, playlist, duration, deltatime, bot,
             LOCK[guild] = False
             return
         try:
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=TCPConnector(
+                    verify_ssl=False)) as session:
                 async with session.get(
                         url=getfile_url,
                         timeout=aiohttp.ClientTimeout(total=5)) as r:
@@ -633,7 +652,8 @@ async def qqmusic(guild, song_name, LOCK, playlist, duration, deltatime, bot,
             playtime[guild] = 0
             LOCK[guild] = False
             return
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=TCPConnector(
+                verify_ssl=False)) as session:
             async with session.get(
                     urlresponse, timeout=aiohttp.ClientTimeout(total=5)) as r:
                 with open(guild + "_" + botid + ".mp3", 'wb') as f:
@@ -710,14 +730,16 @@ async def migu(guild, song_name, LOCK, playlist, duration, deltatime, bot,
         else:
 
             url = "http://127.0.0.1:3400/song/find?keyword=" + song_name
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=TCPConnector(
+                    verify_ssl=False)) as session:
                 async with session.get(
                         url=url, timeout=aiohttp.ClientTimeout(total=5)) as r:
                     response = await r.json()
             musicid = str(response['data']['cid'])
 
         url = 'http://127.0.0.1:3400/song?cid=' + musicid
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=TCPConnector(
+                verify_ssl=False)) as session:
             async with session.get(
                     url=url, timeout=aiohttp.ClientTimeout(total=5)) as r:
                 response = (await r.json())["data"]
@@ -752,7 +774,8 @@ async def migu(guild, song_name, LOCK, playlist, duration, deltatime, bot,
 
         urlresponse = response["320"]
 
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=TCPConnector(
+                verify_ssl=False)) as session:
             async with session.get(
                     urlresponse, timeout=aiohttp.ClientTimeout(total=5)) as r:
                 with open(guild + "_" + botid + ".mp3", 'wb') as f:
@@ -824,7 +847,8 @@ async def kmusic(guild, song_name, LOCK, playlist, duration, deltatime, bot,
     LOCK[guild] = True
     try:
         song_name = parse_kmd_to_url(song_name)
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=TCPConnector(
+                verify_ssl=False)) as session:
             async with session.get(
                     url=song_name,
                     timeout=aiohttp.ClientTimeout(total=5)) as r:
@@ -862,12 +886,14 @@ async def kmusic(guild, song_name, LOCK, playlist, duration, deltatime, bot,
                 r'(?<=songmid=)[0-9|a-z|A-Z]+',
                 response['songinfo']['data']['song_url']).group()
 
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=TCPConnector(
+                    verify_ssl=False)) as session:
                 async with session.get(
                         url=url, timeout=aiohttp.ClientTimeout(total=5)) as r:
                     response = (await r.json())['data']['track_info']
             duration[guild] = response['interval'] + deltatime
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=TCPConnector(
+                verify_ssl=False)) as session:
             async with session.get(
                     urlresponse, timeout=aiohttp.ClientTimeout(total=5)) as r:
                 with open(guild + "_" + botid + ".mp3", 'wb') as f:
@@ -1018,7 +1044,8 @@ async def fm(guild, song_name, LOCK, playlist, duration, deltatime, bot,
         song_name = parse_kmd_to_url(song_name)
         broadcastid = re.search(r'(?<=/radios/)[0-9]+', song_name).group()
         url = 'https://webapi.qtfm.cn/api/pc/radio/' + broadcastid
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=TCPConnector(
+                verify_ssl=False)) as session:
             async with session.get(
                     url=url, timeout=aiohttp.ClientTimeout(total=5)) as r:
                 response = await r.json()
