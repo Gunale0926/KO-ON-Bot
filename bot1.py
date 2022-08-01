@@ -5,16 +5,19 @@ import random
 import re
 import signal
 import time
+
 import aiohttp
 import nest_asyncio
 import psutil
+from aiohttp import TCPConnector
 from khl import Bot, Event, EventTypes, Message, api
 from khl.card import Card, CardMessage, Element, Module, Struct, Types
-from music_manage import bili, fm, kmusic, migu, netease, neteaseradio, qqmusic, ytb
 
-from status_manage import (delmsg, kill, load_cache, load_config, login,
-                           save_cache, status_active_music, disconnect, start,
-                           get_playlist, parse_kmd_to_url, get_helpcm)
+from music_manage import (bili, fm, kmusic, migu, netease, neteaseradio,
+                          qqmusic, ytb)
+from status_manage import (delmsg, disconnect, get_helpcm, get_playlist, kill,
+                           load_cache, load_config, login, parse_kmd_to_url,
+                           save_cache, start, status_active_music)
 from voiceAPI import Voice
 
 eventloop = asyncio.new_event_loop()
@@ -48,9 +51,9 @@ qq_cookie = config["q_cookie"]
 qq_id = config["q_id"]
 qq_enable = config["qq_enable"]
 bot = Bot(token=config['token' + botid])
-playlist = {}  #guild list
-port = {}  #guild port
-p = {}  #guild process
+playlist = {}
+port = {} 
+p = {}
 deltatime = 7
 singleloops = {}
 
@@ -104,7 +107,8 @@ async def import_playlist(msg: Message, linkid: str):
                 'user-agent':
                 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36'
             }
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=TCPConnector(
+                    verify_ssl=False)) as session:
                 async with session.get(
                         url=linkid,
                         headers=headers,
@@ -160,7 +164,8 @@ async def import_playlist(msg: Message, linkid: str):
             url = "http://127.0.0.1:3000/playlist/track/all?id=" + linkid + '&limit=1000&offset=' + str(
                 offset * 1000)
             offset += 1
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=TCPConnector(
+                    verify_ssl=False)) as session:
                 async with session.get(
                         url,
                         headers=headers,
@@ -181,13 +186,16 @@ async def import_playlist(msg: Message, linkid: str):
                             'type':
                             '网易',
                             'time':
-                            int(round(time.time() * 1000)) + 1000000000000
+                            int(round(time.time() * 1000)) + 1000000000000,
+                            'display':
+                            song.get('name', '')
                         })
     except:
         pass
     try:
         url = "http://127.0.0.1:3300/songlist?id=" + linkid
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=TCPConnector(
+                verify_ssl=False)) as session:
             async with session.get(
                     url, timeout=aiohttp.ClientTimeout(total=5)) as r:
                 resp_json = await r.json()
@@ -203,7 +211,9 @@ async def import_playlist(msg: Message, linkid: str):
                         'type':
                         'qq',
                         'time':
-                        int(round(time.time() * 1000)) + 1000000000000
+                        int(round(time.time() * 1000)) + 1000000000000,
+                        'display':
+                        song.get('songname', '')
                     })
     except:
         pass
@@ -275,7 +285,8 @@ async def import_netease_album(msg: Message, linkid: str):
 
         url = "http://127.0.0.1:3000/album?id=" + linkid
 
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=TCPConnector(
+                verify_ssl=False)) as session:
             async with session.get(
                     url, headers=headers,
                     timeout=aiohttp.ClientTimeout(total=5)) as r:
@@ -293,7 +304,9 @@ async def import_netease_album(msg: Message, linkid: str):
                         'type':
                         '网易',
                         'time':
-                        int(round(time.time() * 1000)) + 1000000000000
+                        int(round(time.time() * 1000)) + 1000000000000,
+                        'display':
+                        song.get('name', '')
                     })
         await msg.ctx.channel.send("导入完成")
     except:
@@ -367,7 +380,8 @@ async def import_netease_radio(msg: Message, linkid: str):
             url = "http://127.0.0.1:3000/dj/program?rid=" + linkid + "&limit=1000&offset=" + str(
                 offset * 1000)
             offset += 1
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=TCPConnector(
+                    verify_ssl=False)) as session:
                 async with session.get(
                         url,
                         headers=headers,
@@ -386,7 +400,9 @@ async def import_netease_radio(msg: Message, linkid: str):
                             'type':
                             '网易电台',
                             'time':
-                            int(round(time.time() * 1000)) + 1000000000000
+                            int(round(time.time() * 1000)) + 1000000000000,
+                            'display':
+                            program.get('mainSong', {}).get('name', '')
                         })
         await msg.ctx.channel.send("导入完成")
     except:
@@ -407,38 +423,45 @@ async def connect(msg: Message):
     while JOINLOCK:
         await asyncio.sleep(0.1)
     JOINLOCK = True
-    if len(voice) >= 2 and channel.get(msg.ctx.guild.id, -1) == -1:
-        await msg.ctx.channel.send(
-            "播放槽位已满,请加入交流服务器获取备用机 https://kook.top/vyAPVw")
-        JOINLOCK = False
-        return
-    voiceid = await msg.ctx.guild.fetch_joined_channel(msg.author)
     try:
-        voiceid = voiceid[0].id
-    except:
-        await msg.ctx.channel.send("请先进入一个语音频道或退出重进")
-        JOINLOCK = False
-        return
-    print(voiceid)
-    singleloops[msg.ctx.guild.id] = 0
-    timeout[msg.ctx.guild.id] = 0
-    LOCK[msg.ctx.guild.id] = False
-    playlist[msg.ctx.guild.id] = []
-    voicechannelid[msg.ctx.guild.id] = voiceid
-    channel[msg.ctx.guild.id] = msg.ctx.channel.id
-    playtime[msg.ctx.guild.id] = 0
-    msgid[msg.ctx.guild.id] = "0"
-    duration[msg.ctx.guild.id] = 0
-    port[msg.ctx.guild.id] = rtcpport
-    await msg.ctx.channel.send("已加入频道")
-    voice[msg.ctx.guild.id] = Voice(config['token' + botid])
-    event_loop = asyncio.get_event_loop()
+        if len(voice) >= 2 and channel.get(msg.ctx.guild.id, -1) == -1:
+            await msg.ctx.channel.send(
+                "播放槽位已满,请加入交流服务器获取备用机 https://kook.top/vyAPVw")
+            JOINLOCK = False
+            return
+        voiceid = await msg.ctx.guild.fetch_joined_channel(msg.author)
+        try:
+            voiceid = voiceid[0].id
+        except:
+            await msg.ctx.channel.send("请先进入一个语音频道或退出重进")
+            JOINLOCK = False
+            return
+        print(voiceid)
+        try:
+            singleloops[msg.ctx.guild.id] = 0
+            timeout[msg.ctx.guild.id] = 0
+            LOCK[msg.ctx.guild.id] = False
+            playlist[msg.ctx.guild.id] = []
+            voicechannelid[msg.ctx.guild.id] = voiceid
+            channel[msg.ctx.guild.id] = msg.ctx.channel.id
+            playtime[msg.ctx.guild.id] = 0
+            msgid[msg.ctx.guild.id] = "0"
+            duration[msg.ctx.guild.id] = 0
+            port[msg.ctx.guild.id] = rtcpport
+            await msg.ctx.channel.send("已加入频道")
+            voice[msg.ctx.guild.id] = Voice(config['token' + botid])
+            event_loop = asyncio.get_event_loop()
 
-    asyncio.ensure_future(start(voice[msg.ctx.guild.id], voiceid,
-                                msg.ctx.guild.id, voiceffmpeg, port),
-                          loop=event_loop)
-    rtcpport = str(int(rtcpport) + 1)
-    print(await status_active_music(str(len(voice)), config, botid))
+            asyncio.ensure_future(start(voice[msg.ctx.guild.id], voiceid,
+                                        msg.ctx.guild.id, voiceffmpeg, port),
+                                  loop=event_loop)
+            rtcpport = str(int(rtcpport) + 1)
+            print(await status_active_music(str(len(voice)), config, botid))
+            JOINLOCK = False
+        except:
+            JOINLOCK = False
+    except:
+        JOINLOCK = False
     JOINLOCK = False
 
 
@@ -469,7 +492,7 @@ async def clear_playlist(msg: Message):
         LOCK[msg.ctx.guild.id] = False
     except:
         LOCK[msg.ctx.guild.id] = False
-
+    LOCK[msg.ctx.guild.id] = False
 
 @bot.command(name="下一首")
 async def nextmusic(msg: Message):
@@ -502,6 +525,7 @@ async def nextmusic(msg: Message):
         await msg.ctx.channel.send("切换成功")
     except:
         LOCK[msg.ctx.guild.id] = False
+    LOCK[msg.ctx.guild.id] = False
 
 
 @bot.command(name="点歌")
@@ -675,9 +699,8 @@ async def reconnect(msg: Message):
         await msg.ctx.channel.send("已加入频道")
         voice[msg.ctx.guild.id] = Voice(config['token' + botid])
         event_loop = asyncio.get_event_loop()
-        asyncio.ensure_future(start(botid, singleloops, timeout, LOCK,
-                                    playtime, duration, port, voice, config,
-                                    rtcpport, voiceffmpeg),
+        asyncio.ensure_future(start(voice[msg.ctx.guild.id], voiceid,
+                                    msg.ctx.guild.id, voiceffmpeg, port),
                               loop=event_loop)
         rtcpport = str(int(rtcpport) + 1)
     except Exception as e:
@@ -732,7 +755,8 @@ async def search(msg: Message, *args):
     for st in args:
         song_name = song_name + st + " "
     url = "http://127.0.0.1:3000/search?keywords=" + song_name + "&limit=5"
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(connector=TCPConnector(
+            verify_ssl=False)) as session:
         async with session.get(url=url,
                                headers=headers,
                                timeout=aiohttp.ClientTimeout(total=5)) as r:
@@ -749,7 +773,8 @@ async def search(msg: Message, *args):
     if qq_enable == '1':
         text += 'QQ结果:\n'
         url = "http://127.0.0.1:3300/search/quick?key=" + song_name
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=TCPConnector(
+                verify_ssl=False)) as session:
             async with session.get(
                     url=url, timeout=aiohttp.ClientTimeout(total=5)) as r:
                 songs = (await r.json())['data']['song']['itemlist']
@@ -761,7 +786,8 @@ async def search(msg: Message, *args):
 
     text += '网易电台结果:\n'
     url = "http://127.0.0.1:3000/search?keywords=" + song_name + "&limit=5&type=2000"
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(connector=TCPConnector(
+            verify_ssl=False)) as session:
         async with session.get(url=url,
                                timeout=aiohttp.ClientTimeout(total=5)) as r:
             songs = (await r.json())['data']['resources']
@@ -775,7 +801,8 @@ async def search(msg: Message, *args):
 
     text += '咪咕结果:\n'
     url = "http://127.0.0.1:3400/search?keyword=" + song_name
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(connector=TCPConnector(
+            verify_ssl=False)) as session:
         async with session.get(url=url,
                                timeout=aiohttp.ClientTimeout(total=5)) as r:
             songs = (await r.json())['data']['list']
@@ -809,11 +836,11 @@ async def update_played_time_and_change_music():
     global singleloops
     global load
     print("STEP1")
-    if firstlogin == True:
+    if firstlogin:
         firstlogin = False
         await login(botid, qq_enable, netease_phone, netease_passwd, qq_cookie,
                     qq_id, voice, config)
-    if load == True:
+    if load:
         load = False
         event_loop = asyncio.get_event_loop()
         await load_cache(botid, singleloops, timeout, LOCK, playtime, duration,
@@ -824,10 +851,7 @@ async def update_played_time_and_change_music():
     deletelist = []
     savetag = False
     for guild, songlist in playlist.items():
-        if LOCK[guild]:
-            print("LOCK")
-            continue
-        LOCK[guild] = True
+
         if channel.get(guild, -1) == -1 or timeout.get(
                 guild, -1) == -1 or voiceffmpeg.get(guild, -1) == -1:
             LOCK[guild] = False
@@ -847,11 +871,15 @@ async def update_played_time_and_change_music():
         else:
             timeout[guild] = 0
             if playtime[guild] == 0:
+                if LOCK[guild]:
+                    print("LOCK")
+                    continue
+                LOCK[guild] = True
                 print("playing process start")
                 savetag = True
                 if singleloops[guild] == 3:
                     random.shuffle(playlist[guild])
-                if singleloops[guild] in {0,1}:
+                if singleloops[guild] in {0, 1}:
                     playlist[guild].sort(key=lambda x: list(x.values())[3])
                 song_name = playlist[guild][0]['name']
                 if song_name == "":
@@ -947,7 +975,6 @@ async def update_played_time_and_change_music():
                     playtime[guild] = 0
                     duration[guild] = 0
                     LOCK[guild] = False
-
     print("STEP3")
     for guild in deletelist:
         savetag = True
@@ -959,13 +986,15 @@ async def update_played_time_and_change_music():
 @bot.task.add_interval(minutes=30)
 async def keep_login():
     url = 'http://127.0.0.1:3000/login/refresh'
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(connector=TCPConnector(
+            verify_ssl=False)) as session:
         async with session.get(url=url,
                                timeout=aiohttp.ClientTimeout(total=5)) as r:
             print(await r.text())
     if qq_enable == '1':
         url = 'http://127.0.0.1:3300/user/refresh'
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=TCPConnector(
+                verify_ssl=False)) as session:
             async with session.get(
                     url=url, timeout=aiohttp.ClientTimeout(total=5)) as r:
                 print(await r.text())
