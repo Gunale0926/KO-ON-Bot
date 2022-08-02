@@ -1,15 +1,16 @@
-import json
-import subprocess
-import aiohttp
-import asyncio
-import psutil
-import re
-from voiceAPI import Voice
-from khl import Bot, Event, EventTypes, Message, api
-from khl.card import Card, CardMessage, Element, Module, Struct, Types
-from aiohttp import TCPConnector
+from asyncio import sleep, wait
+from json import loads
+from re import search
+from subprocess import Popen
 
-def get_helpcm(botid):
+from aiohttp import ClientSession, ClientTimeout, TCPConnector
+from khl.card import Card, Module
+from psutil import Process
+
+from voiceAPI import Voice
+
+
+def get_helpcm(botid: str):
     helpcm = [{
         "type":
         "card",
@@ -203,11 +204,14 @@ def get_helpcm(botid):
     return helpcm
 
 
-async def getCidAndTitle(duration, deltatime, guild, bvid, p=1):
+async def getCidAndTitle(duration: dict,
+                         deltatime: int,
+                         guild: str,
+                         bvid: str,
+                         p: int = 1):
     url = 'https://api.bilibili.com/x/web-interface/view?bvid=' + bvid
-    async with aiohttp.ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
-        async with session.get(url=url,
-                               timeout=aiohttp.ClientTimeout(total=5)) as r:
+    async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+        async with session.get(url=url, timeout=ClientTimeout(total=5)) as r:
             data = (await r.json())['data']
     title = data['title']
     cid = data['pages'][p - 1]['cid']
@@ -219,7 +223,8 @@ async def getCidAndTitle(duration, deltatime, guild, bvid, p=1):
     return str(cid), title, mid, name, pic
 
 
-async def getInformation(duration, deltatime, bvid, guild):
+async def getInformation(duration: dict, deltatime: int, bvid: str,
+                         guild: str):
     bvid = bvid.replace("?p=", " ")
     item = []
     if len(bvid) == 12:
@@ -240,14 +245,13 @@ async def getInformation(duration, deltatime, bvid, guild):
     return guild, item
 
 
-async def getAudio(guild, item, botid):
+async def getAudio(guild: str, item: list, botid: str):
     baseUrl = 'http://api.bilibili.com/x/player/playurl?fnval=16&'
     bvid, cid, title, mid, name, pic = item[0], item[1], item[2], item[
         3], item[4], item[5]
     url = baseUrl + 'bvid=' + bvid + '&cid=' + cid
-    async with aiohttp.ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
-        async with session.get(url=url,
-                               timeout=aiohttp.ClientTimeout(total=5)) as r:
+    async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+        async with session.get(url=url, timeout=ClientTimeout(total=5)) as r:
             audioUrl = (await r.json())['data']['dash']['audio'][0]['baseUrl']
     headers = {
         'User-Agent':
@@ -261,10 +265,10 @@ async def getAudio(guild, item, botid):
         'Origin': 'https://www.bilibili.com',
         'Connection': 'keep-alive'
     }
-    async with aiohttp.ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
+    async with ClientSession(connector=TCPConnector(ssl=False)) as session:
         async with session.get(url=audioUrl,
                                headers=headers,
-                               timeout=aiohttp.ClientTimeout(total=5)) as r:
+                               timeout=ClientTimeout(total=5)) as r:
             with open(guild + "_" + botid + ".mp3", 'wb') as f:
                 while True:
                     chunk = await r.content.read()
@@ -274,24 +278,26 @@ async def getAudio(guild, item, botid):
     return bvid, cid, title, mid, name, pic
 
 
-def parse_kmd_to_url(link):
+def parse_kmd_to_url(link: str):
     try:
         pattern = r'(?<=\[)(.*?)(?=\])'
-        link = re.search(pattern, link).group()
+        tmp = search(pattern, link)
+        assert tmp is not None
+        link = tmp.group()
         return link
     except:
         return link
 
 
-def start_play(guild, port, botid):
-    return subprocess.Popen(
+def start_play(guild: str, port: dict, botid: str):
+    return Popen(
         'ffmpeg -re -nostats -i "' + guild + "_" + botid +
         '.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:' +
         port[guild],
         shell=True)
 
 
-def get_playlist(guild, playlist):
+def get_playlist(guild: str, playlist: dict):
     c = Card()
     c.append(Module.Header('播放队列：'))
     if len(playlist[guild]) == 0:
@@ -306,28 +312,28 @@ def get_playlist(guild, playlist):
     return c
 
 
-async def delmsg(msg_id, config, botid):
+async def delmsg(msg_id: str, config: dict, botid: str):
     print(msg_id)
     url = 'https://www.kookapp.cn/api/v3/message/delete'
-    data = {"msg_id": str(msg_id)}
+    data = {"msg_id": msg_id}
     headers = {"Authorization": "Bot " + config['token' + botid]}
-    async with aiohttp.ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
+    async with ClientSession(connector=TCPConnector(ssl=False)) as session:
         async with session.post(url=url,
                                 data=data,
                                 headers=headers,
-                                timeout=aiohttp.ClientTimeout(total=5)) as r:
+                                timeout=ClientTimeout(total=5)) as r:
             print(await r.text())
 
 
 def load_config():
     with open("config.json", "r", encoding="utf-8") as f:
         configstr = f.read().replace('\\', '!')
-        configtmp = json.loads(configstr)
+        configtmp = loads(configstr)
         config = {k: v.replace('!', '\\') for k, v in configtmp.items()}
         return config
 
 
-async def status_active_music(slot, config, botid):
+async def status_active_music(slot: str, config: dict, botid: str):
     print("已用槽位:" + slot)
     url = "https://www.kookapp.cn/api/v3/game/activity"
     headers = {'Authorization': "Bot " + config['token' + botid]}
@@ -337,65 +343,65 @@ async def status_active_music(slot, config, botid):
         "singer": "KO-ON",
         "music_name": "已用槽位:" + slot
     }
-    async with aiohttp.ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
+    async with ClientSession(connector=TCPConnector(ssl=False)) as session:
         async with session.post(url=url, data=params, headers=headers) as r:
-            return json.loads(await r.text())
+            return loads(await r.text())
 
 
-async def login(botid, qq_enable, netease_phone, netease_passwd, qq_cookie,
-                qq_id, voice, config):
+async def login(botid: str, qq_enable: str, netease_phone: str,
+                netease_passwd: str, qq_cookie: str, qq_id: str, voice: dict,
+                config: dict):
     print("id:" + botid)
     print('login check')
     print(await status_active_music(str(len(voice)), config, botid))
     url = 'http://127.0.0.1:3000/login/status?timestamp='
     print(url)
-    async with aiohttp.ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
-        async with session.get(url=url,
-                               timeout=aiohttp.ClientTimeout(total=5)) as r:
+    async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+        async with session.get(url=url, timeout=ClientTimeout(total=5)) as r:
             response = await r.json()
     print(response)
     try:
         response = response['data']['account']['status']
         if response == -10:
             url = 'http://127.0.0.1:3000/login/cellphone?phone=' + netease_phone + '&password=' + netease_passwd
-            async with aiohttp.ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
-                async with session.get(
-                        url=url, timeout=aiohttp.ClientTimeout(total=5)) as r:
+            async with ClientSession(connector=TCPConnector(
+                    ssl=False)) as session:
+                async with session.get(url=url,
+                                       timeout=ClientTimeout(total=5)) as r:
                     print(await r.text())
             print('网易云登陆成功')
     except:
         url = 'http://127.0.0.1:3000/login/cellphone?phone=' + netease_phone + '&password=' + netease_passwd
-        async with aiohttp.ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
-            async with session.get(
-                    url=url, timeout=aiohttp.ClientTimeout(total=5)
-                    ) as r:
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            async with session.get(url=url,
+                                   timeout=ClientTimeout(total=5)) as r:
                 print(await r.text())
         print('网易云登陆成功')
     print('网易已登录')
     url = 'http://127.0.0.1:3000/login/refresh'
-    async with aiohttp.ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
-        async with session.get(url=url,
-                               timeout=aiohttp.ClientTimeout(total=5)) as r:
+    async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+        async with session.get(url=url, timeout=ClientTimeout(total=5)) as r:
             print(await r.text())
     print('刷新登录cookie')
     if qq_enable == "1":
         url = 'http://127.0.0.1:3300/user/setCookie'
         data = {"data": qq_cookie}
-        async with aiohttp.ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
-            async with session.post(
-                    url=url, data=data,
-                    timeout=aiohttp.ClientTimeout(total=5)) as r:
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            async with session.post(url=url,
+                                    data=data,
+                                    timeout=ClientTimeout(total=5)) as r:
                 print(await r.text())
         url = 'http://127.0.0.1:3300/user/getCookie?id=' + qq_id
 
-        async with aiohttp.ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
-            async with session.get(
-                    url=url, timeout=aiohttp.ClientTimeout(total=5)) as r:
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            async with session.get(url=url,
+                                   timeout=ClientTimeout(total=5)) as r:
                 print(await r.text())
         print('QQ已登录')
 
 
-async def save_cache(botid, playlist, voicechannelid, msgid, channel):
+async def save_cache(botid: str, playlist: dict, voicechannelid: dict,
+                     msgid: dict, channel: dict):
     with open(botid + 'playlistcache', 'w', encoding='utf-8') as f:
         f.write(str(playlist))
     with open(botid + 'voiceidcache', 'w', encoding='utf-8') as f:
@@ -403,12 +409,15 @@ async def save_cache(botid, playlist, voicechannelid, msgid, channel):
     with open(botid + 'msgidcache', 'w', encoding='utf-8') as f:
         f.write(str(msgid))
     with open(botid + 'channelidcache', 'w', encoding='utf-8') as f:
-        f.write(str(channel))
+        tmp = {}
+        for guild, chl in channel.items():
+            tmp[guild] = chl.id
+        f.write(str(tmp))
 
 
-def kill(guild, p):
+def kill(guild: str, p: dict):
     try:
-        process = psutil.Process(p[guild].pid)
+        process = Process(p[guild].pid)
         for proc in process.children(recursive=True):
             proc.kill()
         process.kill()
@@ -416,46 +425,16 @@ def kill(guild, p):
         print(e)
 
 
-async def load_cache(botid, singleloops, timeout, LOCK, playtime, duration,
-                     port, voice, config, rtcpport, voiceffmpeg, playlist,
-                     voicechannelid, msgid, channel, event_loop):
-    try:
-        print('loading cache')
-
-        with open(botid + 'playlistcache', 'r', encoding='utf-8') as f:
-            playlist = eval(f.read())
-        with open(botid + 'voiceidcache', 'r', encoding='utf-8') as f:
-            voicechannelid = eval(f.read())
-        with open(botid + 'msgidcache', 'r', encoding='utf-8') as f:
-            msgid = eval(f.read())
-        with open(botid + 'channelidcache', 'r', encoding='utf-8') as f:
-            channel = eval(f.read())
-        for guild, voiceid in voicechannelid.items():
-            print(voiceid)
-            singleloops[guild] = 0
-            timeout[guild] = 0
-            LOCK[guild] = False
-            playtime[guild] = 0
-            duration[guild] = 0
-            port[guild] = rtcpport
-            voice[guild] = Voice(config['token' + botid])
-            asyncio.ensure_future(start(voice[guild], voiceid, guild,
-                                        voiceffmpeg, port),
-                                  loop=event_loop)
-            await asyncio.sleep(0.3)
-
-    except:
-        print('load cache fail')
-
-
-async def start(voice, voiceid, guild, voiceffmpeg, port):
-    await asyncio.wait([
+async def start(voice: Voice, voiceid: str, guild: str, voiceffmpeg: dict,
+                port: dict):
+    await wait([
         voice_Engine(voice, voiceid, guild, voiceffmpeg, port),
         voice.handler()
     ])
 
 
-async def voice_Engine(voice, voiceid: str, guild, voiceffmpeg, port):
+async def voice_Engine(voice: Voice, voiceid: str, guild: str,
+                       voiceffmpeg: dict, port: dict):
     print(voiceid)
     rtp_url = ''
     voice.channel_id = voiceid
@@ -465,16 +444,17 @@ async def voice_Engine(voice, voiceid: str, guild, voiceffmpeg, port):
             comm = "ffmpeg -re -loglevel level+info -nostats -stream_loop -1 -i zmq:tcp://127.0.0.1:" + port[
                 guild] + " -map 0:a:0 -acodec libopus -ab 128k -filter:a volume=0.15 -ac 2 -ar 48000 -f tee [select=a:f=rtp:ssrc=1357:payload_type=100]" + rtp_url
             print(comm)
-            voiceffmpeg[guild] = subprocess.Popen(comm, shell=True)
+            voiceffmpeg[guild] = Popen(comm, shell=True)
             break
-        await asyncio.sleep(0.1)
+        await sleep(0.1)
 
 
-async def disconnect(guild, voice, timeout, voiceffmpeg, LOCK, msgid,
-                     voicechannelid, channel, singleloops, playtime, duration,
-                     port, config, botid):
+async def disconnect(guild: str, voice: dict, timeout: dict, voiceffmpeg: dict,
+                     LOCK: dict, msgid: dict, voicechannelid: dict,
+                     channel: dict, singleloops: dict, playtime: dict,
+                     duration: dict, port: dict, config: dict, botid: str):
     try:
-        process = psutil.Process(voiceffmpeg[guild].pid)
+        process = Process(voiceffmpeg[guild].pid)
         for proc in process.children(recursive=True):
             proc.kill()
         process.kill()
