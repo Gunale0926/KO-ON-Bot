@@ -1,33 +1,35 @@
-import asyncio
-import concurrent.futures
-import os
-import random
-import re
-import signal
-import time
+from asyncio import (AbstractEventLoop, ensure_future, get_event_loop,
+                     new_event_loop, set_event_loop, sleep)
+from concurrent.futures import ThreadPoolExecutor
+from logging import basicConfig
+from os import _exit, path
+from random import shuffle
+from re import search
+from time import time
 
-import aiohttp
-import psutil
-from aiohttp import TCPConnector
+from aiohttp import ClientSession, ClientTimeout, TCPConnector
 from khl import Bot, Event, EventTypes, Message
 from khl.card import CardMessage
+from psutil import Process
 
 from music_manage import (bili, fm, kmusic, migu, netease, neteaseradio,
                           qqmusic, ytb)
 from status_manage import (delmsg, disconnect, get_helpcm, get_playlist, kill,
-                           load_cache, load_config, login, parse_kmd_to_url,
-                           save_cache, start, status_active_music)
+                           load_config, login, parse_kmd_to_url, save_cache,
+                           start, status_active_music)
 from voiceAPI import Voice
 
-eventloop = asyncio.new_event_loop()
-asyncio.set_event_loop(eventloop)
-executor = concurrent.futures.ThreadPoolExecutor()
+basicConfig(level='INFO')
+eventloop = new_event_loop()
+set_event_loop(eventloop)
+executor = ThreadPoolExecutor()
 try:
-    signal.signal(signal.SIGCHLD, signal.SIG_IGN)
+    import signal
+    signal.signal(signal.SIGCHLD, signal.SIG_IGN)  # type: ignore
     print("platform:linux")
 except:
     print("platform:windows")
-botid = os.path.basename(__file__).split(".")[0].replace('bot', '')
+botid = path.basename(__file__).split(".")[0].replace('bot', '')
 config = load_config()
 rtcpport = botid + '234'
 firstlogin = True
@@ -50,7 +52,7 @@ qq_id = config["q_id"]
 qq_enable = config["qq_enable"]
 bot = Bot(token=config['token' + botid])
 playlist = {}
-port = {} 
+port = {}
 p = {}
 deltatime = 7
 singleloops = {}
@@ -59,7 +61,7 @@ singleloops = {}
 @bot.command(name='导入歌单')
 async def import_playlist(msg: Message, linkid: str):
     try:
-        if msg.ctx.channel.id != channel[msg.ctx.guild.id]:
+        if msg.ctx.channel.id != channel[msg.ctx.guild.id].id:
             return
     except:
         return
@@ -105,15 +107,16 @@ async def import_playlist(msg: Message, linkid: str):
                 'user-agent':
                 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36'
             }
-            async with aiohttp.ClientSession(connector=TCPConnector(
-                    verify_ssl=False)) as session:
-                async with session.get(
-                        url=linkid,
-                        headers=headers,
-                        timeout=aiohttp.ClientTimeout(total=5)) as r:
+            async with ClientSession(connector=TCPConnector(
+                    ssl=False)) as session:
+                async with session.get(url=linkid,
+                                       headers=headers,
+                                       timeout=ClientTimeout(total=5)) as r:
                     linkid = await r.text()
         pattern = r'(?<=[^user]id=)[0-9]+|(?<=playlist/)[0-9]+'
-        linkid = re.search(pattern, linkid).group()
+        tmp = search(pattern, linkid)
+        assert tmp is not None
+        linkid = tmp.group()
     except Exception as e:
         print(e)
     print(linkid)
@@ -162,12 +165,11 @@ async def import_playlist(msg: Message, linkid: str):
             url = "http://127.0.0.1:3000/playlist/track/all?id=" + linkid + '&limit=1000&offset=' + str(
                 offset * 1000)
             offset += 1
-            async with aiohttp.ClientSession(connector=TCPConnector(
-                    verify_ssl=False)) as session:
-                async with session.get(
-                        url,
-                        headers=headers,
-                        timeout=aiohttp.ClientTimeout(total=5)) as r:
+            async with ClientSession(connector=TCPConnector(
+                    ssl=False)) as session:
+                async with session.get(url,
+                                       headers=headers,
+                                       timeout=ClientTimeout(total=5)) as r:
                     resp_json = await r.json()
                     songs = resp_json.get("songs", [])
                     if len(songs) == 0:
@@ -183,7 +185,7 @@ async def import_playlist(msg: Message, linkid: str):
                             'type':
                             '网易',
                             'time':
-                            int(round(time.time() * 1000)) + 1000000000000,
+                            int(round(time() * 1000)) + 1000000000000,
                             'display':
                             song.get('name', '')
                         })
@@ -191,10 +193,8 @@ async def import_playlist(msg: Message, linkid: str):
         pass
     try:
         url = "http://127.0.0.1:3300/songlist?id=" + linkid
-        async with aiohttp.ClientSession(connector=TCPConnector(
-                verify_ssl=False)) as session:
-            async with session.get(
-                    url, timeout=aiohttp.ClientTimeout(total=5)) as r:
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            async with session.get(url, timeout=ClientTimeout(total=5)) as r:
                 resp_json = await r.json()
                 songs = resp_json.get("data", {}).get("songlist", [])
                 for song in songs:
@@ -208,7 +208,7 @@ async def import_playlist(msg: Message, linkid: str):
                         'type':
                         'qq',
                         'time':
-                        int(round(time.time() * 1000)) + 1000000000000,
+                        int(round(time() * 1000)) + 1000000000000,
                         'display':
                         song.get('songname', '')
                     })
@@ -220,7 +220,7 @@ async def import_playlist(msg: Message, linkid: str):
 @bot.command(name='导入专辑')
 async def import_netease_album(msg: Message, linkid: str):
     try:
-        if msg.ctx.channel.id != channel[msg.ctx.guild.id]:
+        if msg.ctx.channel.id != channel[msg.ctx.guild.id].id:
             return
     except:
         return
@@ -236,7 +236,9 @@ async def import_netease_album(msg: Message, linkid: str):
     global netease_cookie
     try:
         pattern = r'(?<=[^user]id=)[0-9]+'
-        linkid = re.search(pattern, linkid).group()
+        tmp = search(pattern, linkid)
+        assert tmp is not None
+        linkid = tmp.group()
     except:
         pass
     headers = {
@@ -282,11 +284,10 @@ async def import_netease_album(msg: Message, linkid: str):
 
         url = "http://127.0.0.1:3000/album?id=" + linkid
 
-        async with aiohttp.ClientSession(connector=TCPConnector(
-                verify_ssl=False)) as session:
-            async with session.get(
-                    url, headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=5)) as r:
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            async with session.get(url,
+                                   headers=headers,
+                                   timeout=ClientTimeout(total=5)) as r:
                 resp_json = await r.json()
                 songs = resp_json.get("songs", [])
 
@@ -301,7 +302,7 @@ async def import_netease_album(msg: Message, linkid: str):
                         'type':
                         '网易',
                         'time':
-                        int(round(time.time() * 1000)) + 1000000000000,
+                        int(round(time() * 1000)) + 1000000000000,
                         'display':
                         song.get('name', '')
                     })
@@ -313,7 +314,7 @@ async def import_netease_album(msg: Message, linkid: str):
 @bot.command(name='导入电台')
 async def import_netease_radio(msg: Message, linkid: str):
     try:
-        if msg.ctx.channel.id != channel[msg.ctx.guild.id]:
+        if msg.ctx.channel.id != channel[msg.ctx.guild.id].id:
             return
     except:
         return
@@ -329,7 +330,9 @@ async def import_netease_radio(msg: Message, linkid: str):
     global netease_cookie
     try:
         pattern = r'(?<=[^user]id=)[0-9]+'
-        linkid = re.search(pattern, linkid).group()
+        tmp = search(pattern, linkid)
+        assert tmp is not None
+        linkid = tmp.group()
     except:
         pass
     headers = {
@@ -377,12 +380,11 @@ async def import_netease_radio(msg: Message, linkid: str):
             url = "http://127.0.0.1:3000/dj/program?rid=" + linkid + "&limit=1000&offset=" + str(
                 offset * 1000)
             offset += 1
-            async with aiohttp.ClientSession(connector=TCPConnector(
-                    verify_ssl=False)) as session:
-                async with session.get(
-                        url,
-                        headers=headers,
-                        timeout=aiohttp.ClientTimeout(total=5)) as r:
+            async with ClientSession(connector=TCPConnector(
+                    ssl=False)) as session:
+                async with session.get(url,
+                                       headers=headers,
+                                       timeout=ClientTimeout(total=5)) as r:
                     resp_json = await r.json()
                     programs = resp_json.get("programs", [])
                     if len(programs) == 0:
@@ -397,7 +399,7 @@ async def import_netease_radio(msg: Message, linkid: str):
                             'type':
                             '网易电台',
                             'time':
-                            int(round(time.time() * 1000)) + 1000000000000,
+                            int(round(time() * 1000)) + 1000000000000,
                             'display':
                             program.get('mainSong', {}).get('name', '')
                         })
@@ -418,7 +420,7 @@ async def connect(msg: Message):
     global msgid
     global JOINLOCK
     while JOINLOCK:
-        await asyncio.sleep(0.1)
+        await sleep(0.1)
     JOINLOCK = True
     try:
         if len(voice) >= 2 and channel.get(msg.ctx.guild.id, -1) == -1:
@@ -440,18 +442,18 @@ async def connect(msg: Message):
             LOCK[msg.ctx.guild.id] = False
             playlist[msg.ctx.guild.id] = []
             voicechannelid[msg.ctx.guild.id] = voiceid
-            channel[msg.ctx.guild.id] = msg.ctx.channel.id
+            channel[msg.ctx.guild.id] = msg.ctx.channel
             playtime[msg.ctx.guild.id] = 0
             msgid[msg.ctx.guild.id] = "0"
             duration[msg.ctx.guild.id] = 0
             port[msg.ctx.guild.id] = rtcpport
             await msg.ctx.channel.send("已加入频道")
             voice[msg.ctx.guild.id] = Voice(config['token' + botid])
-            event_loop = asyncio.get_event_loop()
+            event_loop = get_event_loop()
 
-            asyncio.ensure_future(start(voice[msg.ctx.guild.id], voiceid,
-                                        msg.ctx.guild.id, voiceffmpeg, port),
-                                  loop=event_loop)
+            ensure_future(start(voice[msg.ctx.guild.id], voiceid,
+                                msg.ctx.guild.id, voiceffmpeg, port),
+                          loop=event_loop)
             rtcpport = str(int(rtcpport) + 1)
             print(await status_active_music(str(len(voice)), config, botid))
             JOINLOCK = False
@@ -466,19 +468,19 @@ async def connect(msg: Message):
 async def bind_text_channel(msg: Message):
     global channel
     await msg.ctx.channel.send("绑定频道")
-    channel[msg.ctx.guild.id] = msg.ctx.channel.id
+    channel[msg.ctx.guild.id] = msg.ctx.channel
 
 
 @bot.command(name='清空歌单')
 async def clear_playlist(msg: Message):
     try:
-        if msg.ctx.channel.id != channel[msg.ctx.guild.id]:
+        if msg.ctx.channel.id != channel[msg.ctx.guild.id].id:
             return
     except:
         return
     try:
         while LOCK[msg.ctx.guild.id]:
-            await asyncio.sleep(0.1)
+            await sleep(0.1)
         LOCK[msg.ctx.guild.id] = True
         global playlist
         if len(playlist[msg.ctx.guild.id]) > 0:
@@ -491,10 +493,11 @@ async def clear_playlist(msg: Message):
         LOCK[msg.ctx.guild.id] = False
     LOCK[msg.ctx.guild.id] = False
 
+
 @bot.command(name="下一首")
 async def nextmusic(msg: Message):
     try:
-        if msg.ctx.channel.id != channel[msg.ctx.guild.id]:
+        if msg.ctx.channel.id != channel[msg.ctx.guild.id].id:
             return
     except:
         return
@@ -504,7 +507,7 @@ async def nextmusic(msg: Message):
 
         global duration
         while LOCK[msg.ctx.guild.id]:
-            await asyncio.sleep(0.1)
+            await sleep(0.1)
         LOCK[msg.ctx.guild.id] = True
         kill(msg.ctx.guild.id, p)
         if len(playlist[msg.ctx.guild.id]) == 0:
@@ -529,7 +532,7 @@ async def nextmusic(msg: Message):
 async def addmusic(msg: Message, *args):
     global qq_enable
     try:
-        if msg.ctx.channel.id != channel[msg.ctx.guild.id]:
+        if msg.ctx.channel.id != channel[msg.ctx.guild.id].id:
             return
     except:
         return
@@ -567,16 +570,11 @@ async def addmusic(msg: Message, *args):
         for st in args:
             song_name = song_name + st + " "
         playlist[msg.ctx.guild.id].append({
-            'name':
-            song_name,
-            'userid':
-            msg.author.id,
-            'type':
-            typ,
-            'time':
-            int(round(time.time() * 1000)) * coefficient,
-            'display':
-            song_name
+            'name': song_name,
+            'userid': msg.author.id,
+            'type': typ,
+            'time': int(round(time() * 1000)) * coefficient,
+            'display': song_name
         })
         await msg.ctx.channel.send("已添加")
     except:
@@ -608,14 +606,14 @@ async def reload(msg: Message):
 
 
 @bot.command(name="REBOOT" + str(botid))
-async def reboot():
-    os._exit(0)
+async def reboot(msg: Message):
+    _exit(0)
 
 
 @bot.command(name="歌单")
 async def prtlist(msg: Message):
     try:
-        if msg.ctx.channel.id != channel[msg.ctx.guild.id]:
+        if msg.ctx.channel.id != channel[msg.ctx.guild.id].id:
             return
     except:
         return
@@ -643,7 +641,7 @@ async def status(msg: Message):
 async def singlesongloop(msg: Message):
     global singleloops
     try:
-        if msg.ctx.channel.id != channel[msg.ctx.guild.id]:
+        if msg.ctx.channel.id != channel[msg.ctx.guild.id].id:
             return
     except:
         return
@@ -671,7 +669,7 @@ async def reconnect(msg: Message):
     global port
     global rtcpport
     try:
-        if msg.ctx.channel.id != channel[msg.ctx.guild.id]:
+        if msg.ctx.channel.id != channel[msg.ctx.guild.id].id:
             return
     except:
         return
@@ -683,7 +681,7 @@ async def reconnect(msg: Message):
         return
     try:
         try:
-            process = psutil.Process(voiceffmpeg[msg.ctx.guild.id].pid)
+            process = Process(voiceffmpeg[msg.ctx.guild.id].pid)
             for proc in process.children(recursive=True):
                 proc.kill()
             process.kill()
@@ -695,17 +693,17 @@ async def reconnect(msg: Message):
         del voiceffmpeg[msg.ctx.guild.id]
         await msg.ctx.channel.send("已加入频道")
         voice[msg.ctx.guild.id] = Voice(config['token' + botid])
-        event_loop = asyncio.get_event_loop()
-        asyncio.ensure_future(start(voice[msg.ctx.guild.id], voiceid,
-                                    msg.ctx.guild.id, voiceffmpeg, port),
-                              loop=event_loop)
+        event_loop = get_event_loop()
+        ensure_future(start(voice[msg.ctx.guild.id], voiceid, msg.ctx.guild.id,
+                            voiceffmpeg, port),
+                      loop=event_loop)
         rtcpport = str(int(rtcpport) + 1)
     except Exception as e:
         print(e)
 
 
 @bot.command(name="搜索")
-async def search(msg: Message, *args):
+async def musicsearch(msg: Message, *args):
     global netease_cookie
     global botid
     if botid != "1":
@@ -752,11 +750,10 @@ async def search(msg: Message, *args):
     for st in args:
         song_name = song_name + st + " "
     url = "http://127.0.0.1:3000/search?keywords=" + song_name + "&limit=5"
-    async with aiohttp.ClientSession(connector=TCPConnector(
-            verify_ssl=False)) as session:
+    async with ClientSession(connector=TCPConnector(ssl=False)) as session:
         async with session.get(url=url,
                                headers=headers,
-                               timeout=aiohttp.ClientTimeout(total=5)) as r:
+                               timeout=ClientTimeout(total=5)) as r:
             songs = (await r.json())['result']['songs']
     text = '网易云结果:\n'
     try:
@@ -770,10 +767,9 @@ async def search(msg: Message, *args):
     if qq_enable == '1':
         text += 'QQ结果:\n'
         url = "http://127.0.0.1:3300/search/quick?key=" + song_name
-        async with aiohttp.ClientSession(connector=TCPConnector(
-                verify_ssl=False)) as session:
-            async with session.get(
-                    url=url, timeout=aiohttp.ClientTimeout(total=5)) as r:
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            async with session.get(url=url,
+                                   timeout=ClientTimeout(total=5)) as r:
                 songs = (await r.json())['data']['song']['itemlist']
         try:
             for song in songs:
@@ -783,10 +779,8 @@ async def search(msg: Message, *args):
 
     text += '网易电台结果:\n'
     url = "http://127.0.0.1:3000/search?keywords=" + song_name + "&limit=5&type=2000"
-    async with aiohttp.ClientSession(connector=TCPConnector(
-            verify_ssl=False)) as session:
-        async with session.get(url=url,
-                               timeout=aiohttp.ClientTimeout(total=5)) as r:
+    async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+        async with session.get(url=url, timeout=ClientTimeout(total=5)) as r:
             songs = (await r.json())['data']['resources']
     try:
         for song in songs:
@@ -798,10 +792,8 @@ async def search(msg: Message, *args):
 
     text += '咪咕结果:\n'
     url = "http://127.0.0.1:3400/search?keyword=" + song_name
-    async with aiohttp.ClientSession(connector=TCPConnector(
-            verify_ssl=False)) as session:
-        async with session.get(url=url,
-                               timeout=aiohttp.ClientTimeout(total=5)) as r:
+    async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+        async with session.get(url=url, timeout=ClientTimeout(total=5)) as r:
             songs = (await r.json())['data']['list']
     try:
         i = 0
@@ -814,6 +806,46 @@ async def search(msg: Message, *args):
     except:
         text += '无\n'
     await msg.ctx.channel.send(text)
+
+
+async def load_cache(botid: str, singleloops: dict, timeout: dict, LOCK: dict,
+                     playtime: dict, duration: dict, port: dict, voice: dict,
+                     config: dict, voiceffmpeg: dict,
+                     event_loop: AbstractEventLoop):
+    global playlist
+    global voicechannelid
+    global msgid
+    global channel
+    global rtcpport
+    try:
+        print('loading cache')
+
+        with open(botid + 'playlistcache', 'r', encoding='utf-8') as f:
+            playlist = eval(f.read())
+        with open(botid + 'voiceidcache', 'r', encoding='utf-8') as f:
+            voicechannelid = eval(f.read())
+        with open(botid + 'msgidcache', 'r', encoding='utf-8') as f:
+            msgid = eval(f.read())
+        with open(botid + 'channelidcache', 'r', encoding='utf-8') as f:
+            tmpchannel = eval(f.read())
+        for guild, voiceid in voicechannelid.items():
+            print(voiceid)
+            channel[guild] = await bot.fetch_public_channel(tmpchannel[guild])
+            singleloops[guild] = 0
+            timeout[guild] = 0
+            LOCK[guild] = False
+            playtime[guild] = 0
+            duration[guild] = 0
+            port[guild] = rtcpport
+            voice[guild] = Voice(config['token' + botid])
+            ensure_future(start(voice[guild], voiceid, guild, voiceffmpeg,
+                                port),
+                          loop=event_loop)
+            rtcpport = str(int(rtcpport) + 1)
+            await sleep(0.3)
+
+    except:
+        print('load cache fail')
 
 
 @bot.task.add_interval(seconds=deltatime)
@@ -839,23 +871,20 @@ async def update_played_time_and_change_music():
                     qq_id, voice, config)
     if load:
         load = False
-        event_loop = asyncio.get_event_loop()
+        event_loop = get_event_loop()
         await load_cache(botid, singleloops, timeout, LOCK, playtime, duration,
-                         port, voice, config, rtcpport, voiceffmpeg, playlist,
-                         voicechannelid, msgid, channel, event_loop)
+                         port, voice, config, voiceffmpeg, event_loop)
     print("STEP2")
 
     deletelist = []
     savetag = False
-    for guild in playlist.items():
+    for guild, songlist in playlist.items():
 
         if channel.get(guild, -1) == -1 or timeout.get(
                 guild, -1) == -1 or voiceffmpeg.get(guild, -1) == -1:
-            LOCK[guild] = False
             continue
         if len(playlist[guild]) == 0:
             print("timeout +7")
-            LOCK[guild] = False
             timeout[guild] += deltatime
             if timeout[guild] > 60:
                 print("timeout auto leave")
@@ -871,93 +900,79 @@ async def update_played_time_and_change_music():
                 if LOCK[guild]:
                     print("LOCK")
                     continue
-                LOCK[guild] = True
                 print("playing process start")
                 savetag = True
                 if singleloops[guild] == 3:
-                    random.shuffle(playlist[guild])
+                    shuffle(playlist[guild])
                 if singleloops[guild] in {0, 1}:
                     playlist[guild].sort(key=lambda x: list(x.values())[3])
                 song_name = playlist[guild][0]['name']
                 if song_name == "":
                     LOCK[guild] = False
                     continue
-                event_loop = asyncio.get_event_loop()
+                event_loop = get_event_loop()
                 if playlist[guild][0]['type'] in {
                         '网易', 'netease', 'Netease', '网易云', '网易云音乐', '网易音乐'
                 }:
-                    LOCK[guild] = False
-                    asyncio.ensure_future(netease(guild, song_name, LOCK,
-                                                  netease_cookie, playlist,
-                                                  duration, deltatime, bot,
-                                                  config, playtime, p, botid,
-                                                  port, msgid, channel),
-                                          loop=event_loop)
+                    ensure_future(netease(guild, song_name, LOCK,
+                                          netease_cookie, playlist, duration,
+                                          deltatime, bot, config, playtime, p,
+                                          botid, port, msgid, channel),
+                                  loop=event_loop)
                 elif playlist[guild][0]['type'] in {
                         'bili', 'b站', 'bilibili', 'Bili', 'Bilibili', 'B站'
                 }:
-                    LOCK[guild] = False
-                    asyncio.ensure_future(bili(guild, song_name, LOCK,
-                                               playlist, duration, deltatime,
-                                               bot, config, playtime, p, botid,
-                                               port, msgid, channel),
-                                          loop=event_loop)
+                    ensure_future(bili(guild, song_name, LOCK, playlist,
+                                       duration, deltatime, bot, config,
+                                       playtime, p, botid, port, msgid,
+                                       channel),
+                                  loop=event_loop)
                 elif playlist[guild][0]['type'] in {'网易电台', '电台'}:
-                    LOCK[guild] = False
-                    asyncio.ensure_future(neteaseradio(guild, song_name, LOCK,
-                                                       netease_cookie,
-                                                       playlist, duration,
-                                                       deltatime, bot, config,
-                                                       playtime, p, botid,
-                                                       port, msgid, channel),
-                                          loop=event_loop)
+                    ensure_future(neteaseradio(guild, song_name, LOCK,
+                                               netease_cookie, playlist,
+                                               duration, deltatime, bot,
+                                               config, playtime, p, botid,
+                                               port, msgid, channel),
+                                  loop=event_loop)
                 elif playlist[guild][0]['type'] in {
                         'qq', 'qq音乐', 'QQ', 'QQ音乐'
                 }:
-                    LOCK[guild] = False
-                    asyncio.ensure_future(qqmusic(guild, song_name, LOCK,
-                                                  playlist, duration,
-                                                  deltatime, bot, config,
-                                                  playtime, p, botid, port,
-                                                  msgid, channel),
-                                          loop=event_loop)
+                    ensure_future(qqmusic(guild, song_name, LOCK, playlist,
+                                          duration, deltatime, bot, config,
+                                          playtime, p, botid, port, msgid,
+                                          channel),
+                                  loop=event_loop)
                 elif playlist[guild][0]['type'] in {
                         'k歌', 'K歌', '全民k歌', '全民K歌'
                 }:
-                    LOCK[guild] = False
-                    asyncio.ensure_future(kmusic(guild, song_name, LOCK,
-                                                 playlist, duration, deltatime,
-                                                 bot, config, playtime, p,
-                                                 botid, port, msgid, channel),
-                                          loop=event_loop)
+                    ensure_future(kmusic(guild, song_name, LOCK, playlist,
+                                         duration, deltatime, bot, config,
+                                         playtime, p, botid, port, msgid,
+                                         channel),
+                                  loop=event_loop)
                 elif playlist[guild][0]['type'] in {
                         'ytb', 'YTB', 'youtube', 'Youtube', '油管'
                 }:
-                    LOCK[guild] = False
-                    asyncio.ensure_future(ytb(guild, song_name, LOCK, playlist,
-                                              duration, deltatime, bot, config,
-                                              playtime, p, botid, port, msgid,
-                                              channel, event_loop, executor),
-                                          loop=event_loop)
+                    ensure_future(ytb(guild, song_name, LOCK, playlist,
+                                      duration, deltatime, bot, config,
+                                      playtime, p, botid, port, msgid, channel,
+                                      event_loop, executor),
+                                  loop=event_loop)
                 elif playlist[guild][0]['type'] in {'FM', 'fm', 'Fm'}:
-                    LOCK[guild] = False
-                    asyncio.ensure_future(fm(guild, song_name, LOCK, playlist,
-                                             duration, deltatime, bot, config,
-                                             playtime, p, botid, port, msgid,
-                                             channel),
-                                          loop=event_loop)
+                    ensure_future(fm(guild, song_name, LOCK, playlist,
+                                     duration, deltatime, bot, config,
+                                     playtime, p, botid, port, msgid, channel),
+                                  loop=event_loop)
                 else:
-                    LOCK[guild] = False
-                    asyncio.ensure_future(migu(guild, song_name, LOCK,
-                                               playlist, duration, deltatime,
-                                               bot, config, playtime, p, botid,
-                                               port, msgid, channel),
-                                          loop=event_loop)
+                    ensure_future(migu(guild, song_name, LOCK, playlist,
+                                       duration, deltatime, bot, config,
+                                       playtime, p, botid, port, msgid,
+                                       channel),
+                                  loop=event_loop)
             else:
                 if playtime[guild] < duration[guild]:
                     print("playing process time+7")
                     playtime[guild] += deltatime
-                    LOCK[guild] = False
                 else:
                     print("playing process end")
                     kill(guild, p)
@@ -971,7 +986,6 @@ async def update_played_time_and_change_music():
                         playlist[guild].pop(0)
                     playtime[guild] = 0
                     duration[guild] = 0
-                    LOCK[guild] = False
     print("STEP3")
     for guild in deletelist:
         savetag = True
@@ -983,17 +997,14 @@ async def update_played_time_and_change_music():
 @bot.task.add_interval(minutes=30)
 async def keep_login():
     url = 'http://127.0.0.1:3000/login/refresh'
-    async with aiohttp.ClientSession(connector=TCPConnector(
-            verify_ssl=False)) as session:
-        async with session.get(url=url,
-                               timeout=aiohttp.ClientTimeout(total=5)) as r:
+    async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+        async with session.get(url=url, timeout=ClientTimeout(total=5)) as r:
             print(await r.text())
     if qq_enable == '1':
         url = 'http://127.0.0.1:3300/user/refresh'
-        async with aiohttp.ClientSession(connector=TCPConnector(
-                verify_ssl=False)) as session:
-            async with session.get(
-                    url=url, timeout=aiohttp.ClientTimeout(total=5)) as r:
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            async with session.get(url=url,
+                                   timeout=ClientTimeout(total=5)) as r:
                 print(await r.text())
     print('刷新登录')
 
@@ -1013,7 +1024,7 @@ async def on_btn_clicked(_: Bot, e: Event):
     if e.body['value'] == "NEXT":
         try:
             while LOCK[guild]:
-                await asyncio.sleep(0.1)
+                await sleep(0.1)
             LOCK[guild] = True
             kill(guild, p)
             if len(playlist[guild]) == 0:
@@ -1026,7 +1037,7 @@ async def on_btn_clicked(_: Bot, e: Event):
             playtime[guild] = 0
             duration[guild] = 0
             await bot.send(
-                await bot.fetch_public_channel(channel[guild]),
+                channel[guild],
                 "来自" + e.body['user_info']['nickname'] + "的操作:已切换下一首")
             LOCK[guild] = False
         except:
@@ -1034,13 +1045,13 @@ async def on_btn_clicked(_: Bot, e: Event):
     if e.body['value'] == "CLEAR":
         try:
             while LOCK[guild]:
-                await asyncio.sleep(0.1)
+                await sleep(0.1)
             LOCK[guild] = True
             if len(playlist[guild]) > 0:
                 now = playlist[guild][0]
                 playlist[guild] = []
                 playlist[guild].append(now)
-            await bot.send(await bot.fetch_public_channel(channel[guild]),
+            await bot.send(channel[guild],
                            "来自" + e.body['user_info']['nickname'] + "的操作:清空完成")
             LOCK[guild] = False
         except:
@@ -1049,27 +1060,27 @@ async def on_btn_clicked(_: Bot, e: Event):
 
         try:
             while LOCK[guild]:
-                await asyncio.sleep(0.1)
+                await sleep(0.1)
             LOCK[guild] = True
             if singleloops[guild] == 0:
                 singleloops[guild] = 1
                 await bot.send(
-                    await bot.fetch_public_channel(channel[guild]), "来自" +
-                    e.body['user_info']['nickname'] + "的操作:循环模式已调整为:单曲循环")
+                    channel[guild], "来自" + e.body['user_info']['nickname'] +
+                    "的操作:循环模式已调整为:单曲循环")
             elif singleloops[guild] == 1:
                 singleloops[guild] = 2
                 await bot.send(
-                    await bot.fetch_public_channel(channel[guild]), "来自" +
-                    e.body['user_info']['nickname'] + "的操作:循环模式已调整为:列表循环")
+                    channel[guild], "来自" + e.body['user_info']['nickname'] +
+                    "的操作:循环模式已调整为:列表循环")
             elif singleloops[guild] == 2:
                 singleloops[guild] = 3
                 await bot.send(
-                    await bot.fetch_public_channel(channel[guild]), "来自" +
-                    e.body['user_info']['nickname'] + "的操作:循环模式已调整为:随机播放")
+                    channel[guild], "来自" + e.body['user_info']['nickname'] +
+                    "的操作:循环模式已调整为:随机播放")
             else:
                 singleloops[guild] = 0
                 await bot.send(
-                    await bot.fetch_public_channel(channel[guild]),
+                    channel[guild],
                     "来自" + e.body['user_info']['nickname'] + "的操作:循环模式已调整为:关闭")
             LOCK[guild] = False
         except:
@@ -1081,7 +1092,7 @@ async def on_exit_voice(_: Bot, e: Event):
     guild = e.target_id
     try:
         while LOCK[guild]:
-            await asyncio.sleep(0.1)
+            await sleep(0.1)
         LOCK[guild] = True
         global playlist
         print(e.body)
@@ -1099,6 +1110,6 @@ async def on_exit_voice(_: Bot, e: Event):
 
 bot.command.update_prefixes("")
 
-event_loop = asyncio.get_event_loop()
-asyncio.ensure_future(bot.start(), loop=event_loop)
+event_loop = get_event_loop()
+ensure_future(bot.start(), loop=event_loop)
 event_loop.run_forever()
