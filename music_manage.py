@@ -1,19 +1,25 @@
-import time
-import aiohttp
-import subprocess
-import re
-import json
+from asyncio import AbstractEventLoop
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
-from status_manage import kill, delmsg, start_play, get_playlist, parse_kmd_to_url, getAudio, getInformation
-from khl import Bot, Event, EventTypes, Message, api
-from khl.card import Card, CardMessage, Element, Module, Struct, Types
-from pytube import YouTube
+from json import dumps, loads
+from re import compile, search
+from subprocess import Popen
+from time import localtime, strftime, time
+
 from aiohttp import TCPConnector
+from aiohttp.client import ClientSession, ClientTimeout
+from khl.bot.bot import Bot
+from khl.card import Card, CardMessage, Element, Module, Types
+from pytube import YouTube
+
+from status_manage import (delmsg, get_playlist, getAudio, getInformation,
+                           kill, parse_kmd_to_url, start_play)
 
 
-async def netease(guild, song_name, LOCK, netease_cookie, playlist, duration,
-                  deltatime, bot, config, playtime, p, botid, port, msgid,
-                  channel):
+async def netease(guild: str, song_name: str, LOCK: dict, netease_cookie: str,
+                  playlist: dict, duration: dict, deltatime: int, bot: Bot,
+                  config: dict, playtime: dict, p: dict, botid: str,
+                  port: dict, msgid: dict, channel: dict):
     LOCK[guild] = True
     try:
         headers = {
@@ -54,32 +60,29 @@ async def netease(guild, song_name, LOCK, netease_cookie, playlist, duration,
             'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.63 Safari/537.36 Edg/102.0.1245.33'
         }
-        if playlist[guild][0]['time'] > int(round(time.time() * 1000)):
+        if playlist[guild][0]['time'] > int(round(time() * 1000)):
             song_name = song_name.split('-')[-1]
             musicid = song_name
         else:
             url = "http://127.0.0.1:3000/cloudsearch?keywords=" + song_name + "&limit=1"
-            async with aiohttp.ClientSession(connector=TCPConnector(
-                    verify_ssl=False)) as session:
-                async with session.get(
-                        url=url,
-                        headers=headers,
-                        timeout=aiohttp.ClientTimeout(total=5)) as r:
+            async with ClientSession(connector=TCPConnector(
+                    ssl=False)) as session:
+                async with session.get(url=url,
+                                       headers=headers,
+                                       timeout=ClientTimeout(total=5)) as r:
                     response = await r.json()
             musicid = str(response['result']['songs'][0]['id'])
 
         url = 'http://127.0.0.1:3000/song/detail?ids=' + musicid
-        async with aiohttp.ClientSession(connector=TCPConnector(
-                verify_ssl=False)) as session:
-            async with session.get(
-                    url=url,
-                    headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=5)) as r:
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            async with session.get(url=url,
+                                   headers=headers,
+                                   timeout=ClientTimeout(total=5)) as r:
                 response = (await r.json())['songs'][0]
         duration[guild] = int(response['dt'] / 1000) + deltatime
         song_name = response['name']
         playlist[guild][0]['display'] = song_name
-        ban = re.compile('(惊雷)|(Lost Rivers)')
+        ban = compile('(惊雷)|(Lost Rivers)')
         resu = ban.findall(song_name)
         print(resu)
         if len(resu) > 0:
@@ -105,14 +108,12 @@ async def netease(guild, song_name, LOCK, netease_cookie, playlist, duration,
         pic_url = response['al']['picUrl']
         getfile_url = 'http://127.0.0.1:3000/song/url?id=' + str(
             response['id']) + '&br=320000&timestamp=' + str(
-                int(round(time.time() * 1000)))
+                int(round(time() * 1000)))
 
-        async with aiohttp.ClientSession(connector=TCPConnector(
-                verify_ssl=False)) as session:
-            async with session.get(
-                    url=getfile_url,
-                    headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=5)) as r:
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            async with session.get(url=getfile_url,
+                                   headers=headers,
+                                   timeout=ClientTimeout(total=5)) as r:
                 urlresponse = (await r.json())['data'][0]['url']
         print(urlresponse)
         if urlresponse is None:
@@ -123,13 +124,12 @@ async def netease(guild, song_name, LOCK, netease_cookie, playlist, duration,
                 == 0) and (not urlresponse.endswith(".flac")):
             getfile_url = 'http://127.0.0.1:3000/song/download/url?id=' + str(
                 response['id']) + '&br=320000&timestamp=' + str(
-                    int(round(time.time() * 1000)))
-            async with aiohttp.ClientSession(connector=TCPConnector(
-                    verify_ssl=False)) as session:
-                async with session.get(
-                        url=getfile_url,
-                        headers=headers,
-                        timeout=aiohttp.ClientTimeout(total=5)) as r:
+                    int(round(time() * 1000)))
+            async with ClientSession(connector=TCPConnector(
+                    ssl=False)) as session:
+                async with session.get(url=getfile_url,
+                                       headers=headers,
+                                       timeout=ClientTimeout(total=5)) as r:
                     urlresponse = (await r.json())['data']['url']
             print(urlresponse)
         if urlresponse is None:
@@ -140,12 +140,11 @@ async def netease(guild, song_name, LOCK, netease_cookie, playlist, duration,
                 == 0) and (not urlresponse.endswith(".flac")):
             getfile_url = 'http://127.0.0.1:3000/song/url?id=' + str(
                 response['id']) + '&br=320000'
-            async with aiohttp.ClientSession(connector=TCPConnector(
-                    verify_ssl=False)) as session:
-                async with session.get(
-                        url=getfile_url,
-                        headers=headers,
-                        timeout=aiohttp.ClientTimeout(total=5)) as r:
+            async with ClientSession(connector=TCPConnector(
+                    ssl=False)) as session:
+                async with session.get(url=getfile_url,
+                                       headers=headers,
+                                       timeout=ClientTimeout(total=5)) as r:
                     urlresponse = (await r.json())['data'][0]['url']
             print(urlresponse)
         if urlresponse is None:
@@ -156,23 +155,21 @@ async def netease(guild, song_name, LOCK, netease_cookie, playlist, duration,
                 == 0) and (not urlresponse.endswith(".flac")):
             getfile_url = 'http://127.0.0.1:3000/song/download/url?id=' + str(
                 response['id']) + '&br=320000'
-            async with aiohttp.ClientSession(connector=TCPConnector(
-                    verify_ssl=False)) as session:
-                async with session.get(
-                        url=getfile_url,
-                        headers=headers,
-                        timeout=aiohttp.ClientTimeout(total=5)) as r:
+            async with ClientSession(connector=TCPConnector(
+                    ssl=False)) as session:
+                async with session.get(url=getfile_url,
+                                       headers=headers,
+                                       timeout=ClientTimeout(total=5)) as r:
                     urlresponse = (await r.json())['data']['url']
             print(urlresponse)
         if urlresponse is None:
             urlresponse = ''
 
         if urlresponse.endswith("flac"):
-            async with aiohttp.ClientSession(connector=TCPConnector(
-                    verify_ssl=False)) as session:
-                async with session.get(
-                        urlresponse,
-                        timeout=aiohttp.ClientTimeout(total=5)) as r:
+            async with ClientSession(connector=TCPConnector(
+                    ssl=False)) as session:
+                async with session.get(urlresponse,
+                                       timeout=ClientTimeout(total=5)) as r:
                     with open(guild + "_" + botid + ".flac", 'wb') as f:
                         while True:
                             chunk = await r.content.read()
@@ -180,17 +177,16 @@ async def netease(guild, song_name, LOCK, netease_cookie, playlist, duration,
                                 break
                             f.write(chunk)
             kill(guild, p)
-            p[guild] = subprocess.Popen(
+            p[guild] = Popen(
                 'ffmpeg -re -nostats -i "' + guild + "_" + botid +
                 '.flac" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'
                 + port[guild],
                 shell=True)
         else:
-            async with aiohttp.ClientSession(connector=TCPConnector(
-                    verify_ssl=False)) as session:
-                async with session.get(
-                        urlresponse,
-                        timeout=aiohttp.ClientTimeout(total=5)) as r:
+            async with ClientSession(connector=TCPConnector(
+                    ssl=False)) as session:
+                async with session.get(urlresponse,
+                                       timeout=ClientTimeout(total=5)) as r:
                     with open(guild + "_" + botid + ".mp3", 'wb') as f:
                         while True:
                             chunk = await r.content.read()
@@ -231,19 +227,19 @@ async def netease(guild, song_name, LOCK, netease_cookie, playlist, duration,
                 Element.Button('清空歌单', 'CLEAR', Types.Click.RETURN_VAL),
                 Element.Button('循环模式', 'LOOP', Types.Click.RETURN_VAL)))
         cm.append(c)
-        msgid[guild] = (await bot.send(
-            await bot.fetch_public_channel(channel[guild]), cm))["msg_id"]
+        msgid[guild] = (await bot.send(channel[guild],
+                                       cm))["msg_id"]  # type: ignore
         playtime[guild] += deltatime
     except Exception as e:
         print(str(e))
         if str(e) == "'songs'":
             await bot.send(
-                await bot.fetch_public_channel(channel[guild]),
+                channel[guild],
                 '未检索到此歌曲',
             )
         else:
             await bot.send(
-                await bot.fetch_public_channel(channel[guild]),
+                channel[guild],
                 '发生错误，请重试',
             )
         playlist[guild].pop(0)
@@ -255,22 +251,26 @@ async def netease(guild, song_name, LOCK, netease_cookie, playlist, duration,
     return
 
 
-async def bili(guild, song_name, LOCK, playlist, duration, deltatime, bot,
-               config, playtime, p, botid, port, msgid, channel):
+async def bili(guild: str, song_name: str, LOCK: dict, playlist: dict,
+               duration: dict, deltatime: int, bot: Bot, config: dict,
+               playtime: dict, p: dict, botid: str, port: dict, msgid: dict,
+               channel: dict):
     LOCK[guild] = True
     try:
         pattern = r'BV\w{10}(\?p=[0-9]+)*'
-        song_name = re.search(pattern, song_name).group()
+        tmp = search(pattern, song_name)
+        assert tmp is not None
+        song_name = tmp.group()
         guild, item = await getInformation(duration, deltatime, song_name,
                                            guild)
         bvid, cid, title, mid, name, pic = await getAudio(guild, item, botid)
         print(duration[guild])
-        ban = re.compile('(惊雷)|(Lost Rivers)')
+        ban = compile('(惊雷)|(Lost Rivers)')
         resu = ban.findall(title)
         if len(resu) > 0:
             playlist[guild].pop(0)
             await bot.send(
-                await bot.fetch_public_channel(channel[guild]),
+                channel[guild],
                 '吃了吗，没吃吃我一拳',
             )
             duration[guild] = 0
@@ -304,24 +304,24 @@ async def bili(guild, song_name, LOCK, playlist, duration, deltatime, bot,
                 Element.Button('清空歌单', 'CLEAR', Types.Click.RETURN_VAL),
                 Element.Button('循环模式', 'LOOP', Types.Click.RETURN_VAL)))
         cm.append(c)
-        msgid[guild] = (await bot.send(
-            await bot.fetch_public_channel(channel[guild]), cm))["msg_id"]
+        msgid[guild] = (await bot.send(channel[guild],
+                                       cm))["msg_id"]  # type: ignore
         playtime[guild] += deltatime
     except Exception as e:
         print(str(e))
         if str(e) == "'data'":
             await bot.send(
-                await bot.fetch_public_channel(channel[guild]),
+                channel[guild],
                 '未检索到此歌曲',
             )
         elif str(e) == "'NoneType' object has no attribute 'group'":
             await bot.send(
-                await bot.fetch_public_channel(channel[guild]),
+                channel[guild],
                 'BV号或链接输入有误',
             )
         else:
             await bot.send(
-                await bot.fetch_public_channel(channel[guild]),
+                channel[guild],
                 '发生错误，请重试',
             )
         playlist[guild].pop(0)
@@ -333,9 +333,11 @@ async def bili(guild, song_name, LOCK, playlist, duration, deltatime, bot,
     return
 
 
-async def neteaseradio(guild, song_name, LOCK, netease_cookie, playlist,
-                       duration, deltatime, bot, config, playtime, p, botid,
-                       port, msgid, channel):
+async def neteaseradio(guild: str, song_name: str, LOCK: dict,
+                       netease_cookie: str, playlist: dict, duration: dict,
+                       deltatime: int, bot: Bot, config: dict, playtime: dict,
+                       p: dict, botid: str, port: dict, msgid: dict,
+                       channel: dict):
     LOCK[guild] = True
     try:
         headers = {
@@ -380,17 +382,15 @@ async def neteaseradio(guild, song_name, LOCK, netease_cookie, playlist,
         song_name = song_name.split('-')[-1]
         print(song_name)
         url = 'http://127.0.0.1:3000/dj/program/detail?id=' + song_name
-        async with aiohttp.ClientSession(connector=TCPConnector(
-                verify_ssl=False)) as session:
-            async with session.get(
-                    url=url,
-                    headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=5)) as r:
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            async with session.get(url=url,
+                                   headers=headers,
+                                   timeout=ClientTimeout(total=5)) as r:
                 response = await r.json()
         print(response['code'])
         if response['code'] == 404 or response['code'] == 400:
             await bot.send(
-                await bot.fetch_public_channel(channel[guild]),
+                channel[guild],
                 '未检索到此歌曲',
             )
             playlist[guild].pop(0)
@@ -403,13 +403,13 @@ async def neteaseradio(guild, song_name, LOCK, netease_cookie, playlist,
         song_url = 'https://music.163.com/#/program?id=' + song_name
         song_name = response['mainSong']['name']
         playlist[guild][0]['display'] = song_name
-        ban = re.compile('(惊雷)|(Lost Rivers)')
+        ban = compile('(惊雷)|(Lost Rivers)')
         resu = ban.findall(song_name)
         print(resu)
         if len(resu) > 0:
             playlist[guild].pop(0)
             await bot.send(
-                await bot.fetch_public_channel(channel[guild]),
+                channel[guild],
                 '吃了吗，没吃吃我一拳',
             )
             duration[guild] = 0
@@ -429,12 +429,10 @@ async def neteaseradio(guild, song_name, LOCK, netease_cookie, playlist,
         pic_url = response['radio']['picUrl']
         getfile_url = 'http://127.0.0.1:3000/song/url?id=' + str(
             response['mainSong']['id']) + '&br=320000'
-        async with aiohttp.ClientSession(connector=TCPConnector(
-                verify_ssl=False)) as session:
-            async with session.get(
-                    url=getfile_url,
-                    headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=5)) as r:
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            async with session.get(url=getfile_url,
+                                   headers=headers,
+                                   timeout=ClientTimeout(total=5)) as r:
                 urlresponse = (await r.json())['data'][0]['url']
         print(urlresponse)
         if urlresponse is None:
@@ -444,12 +442,11 @@ async def neteaseradio(guild, song_name, LOCK, netease_cookie, playlist,
                 == 0) and not urlresponse.endswith(".flac"):
             getfile_url = 'http://127.0.0.1:3000/song/download/url?id=' + str(
                 response['mainSong']['id']) + '&br=320000'
-            async with aiohttp.ClientSession(connector=TCPConnector(
-                    verify_ssl=False)) as session:
-                async with session.get(
-                        url=getfile_url,
-                        headers=headers,
-                        timeout=aiohttp.ClientTimeout(total=5)) as r:
+            async with ClientSession(connector=TCPConnector(
+                    ssl=False)) as session:
+                async with session.get(url=getfile_url,
+                                       headers=headers,
+                                       timeout=ClientTimeout(total=5)) as r:
                     urlresponse = (await r.json())['data']['url']
             print(urlresponse)
         if urlresponse is None:
@@ -460,12 +457,11 @@ async def neteaseradio(guild, song_name, LOCK, netease_cookie, playlist,
                 == 0) and not urlresponse.endswith(".flac"):
             getfile_url = 'http://127.0.0.1:3000/song/url?id=' + str(
                 response['mainSong']['id']) + '&br=320000'
-            async with aiohttp.ClientSession(connector=TCPConnector(
-                    verify_ssl=False)) as session:
-                async with session.get(
-                        url=getfile_url,
-                        headers=headers,
-                        timeout=aiohttp.ClientTimeout(total=5)) as r:
+            async with ClientSession(connector=TCPConnector(
+                    ssl=False)) as session:
+                async with session.get(url=getfile_url,
+                                       headers=headers,
+                                       timeout=ClientTimeout(total=5)) as r:
                     urlresponse = (await r.json())['data'][0]['url']
             print(urlresponse)
         if urlresponse is None:
@@ -476,12 +472,11 @@ async def neteaseradio(guild, song_name, LOCK, netease_cookie, playlist,
                 == 0) and not urlresponse.endswith(".flac"):
             getfile_url = 'http://127.0.0.1:3000/song/download/url?id=' + str(
                 response['mainSong']['id']) + '&br=320000'
-            async with aiohttp.ClientSession(connector=TCPConnector(
-                    verify_ssl=False)) as session:
-                async with session.get(
-                        url=getfile_url,
-                        headers=headers,
-                        timeout=aiohttp.ClientTimeout(total=5)) as r:
+            async with ClientSession(connector=TCPConnector(
+                    ssl=False)) as session:
+                async with session.get(url=getfile_url,
+                                       headers=headers,
+                                       timeout=ClientTimeout(total=5)) as r:
                     urlresponse = (await r.json())['data']['url']
             print(urlresponse)
         if urlresponse is None:
@@ -491,22 +486,20 @@ async def neteaseradio(guild, song_name, LOCK, netease_cookie, playlist,
                 == 0) and not urlresponse.endswith(".flac"):
             getfile_url = 'http://127.0.0.1:3000/song/url?id=' + str(
                 response['mainSong']['id']) + '?timestamp='
-            async with aiohttp.ClientSession(connector=TCPConnector(
-                    verify_ssl=False)) as session:
-                async with session.get(
-                        url=getfile_url,
-                        headers=headers,
-                        timeout=aiohttp.ClientTimeout(total=5)) as r:
+            async with ClientSession(connector=TCPConnector(
+                    ssl=False)) as session:
+                async with session.get(url=getfile_url,
+                                       headers=headers,
+                                       timeout=ClientTimeout(total=5)) as r:
                     urlresponse = (await r.json())['data'][0]['url']
             print(urlresponse)
         if urlresponse is None:
             urlresponse = ''
         if urlresponse.endswith("flac"):
-            async with aiohttp.ClientSession(connector=TCPConnector(
-                    verify_ssl=False)) as session:
-                async with session.get(
-                        urlresponse,
-                        timeout=aiohttp.ClientTimeout(total=5)) as r:
+            async with ClientSession(connector=TCPConnector(
+                    ssl=False)) as session:
+                async with session.get(urlresponse,
+                                       timeout=ClientTimeout(total=5)) as r:
                     with open(guild + ".flac", 'wb') as f:
                         while True:
                             chunk = await r.content.read()
@@ -514,17 +507,16 @@ async def neteaseradio(guild, song_name, LOCK, netease_cookie, playlist,
                                 break
                             f.write(chunk)
             kill(guild, p)
-            p[guild] = subprocess.Popen(
+            p[guild] = Popen(
                 'ffmpeg -re -nostats -i "' + guild +
                 '.flac" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'
                 + port[guild],
                 shell=True)
         else:
-            async with aiohttp.ClientSession(connector=TCPConnector(
-                    verify_ssl=False)) as session:
-                async with session.get(
-                        urlresponse,
-                        timeout=aiohttp.ClientTimeout(total=5)) as r:
+            async with ClientSession(connector=TCPConnector(
+                    ssl=False)) as session:
+                async with session.get(urlresponse,
+                                       timeout=ClientTimeout(total=5)) as r:
                     with open(guild + "_" + botid + ".mp3", 'wb') as f:
                         while True:
                             chunk = await r.content.read()
@@ -565,14 +557,14 @@ async def neteaseradio(guild, song_name, LOCK, netease_cookie, playlist,
                 Element.Button('清空歌单', 'CLEAR', Types.Click.RETURN_VAL),
                 Element.Button('循环模式', 'LOOP', Types.Click.RETURN_VAL)))
         cm.append(c)
-        print(json.dumps(cm))
-        msgid[guild] = (await bot.send(
-            await bot.fetch_public_channel(channel[guild]), cm))["msg_id"]
+        print(dumps(cm))
+        msgid[guild] = (await bot.send(channel[guild],
+                                       cm))["msg_id"]  # type: ignore
         playtime[guild] += deltatime
     except Exception as e:
         print(str(e))
         await bot.send(
-            await bot.fetch_public_channel(channel[guild]),
+            channel[guild],
             '发生错误，请重试',
         )
         playlist[guild].pop(0)
@@ -584,27 +576,28 @@ async def neteaseradio(guild, song_name, LOCK, netease_cookie, playlist,
     return
 
 
-async def qqmusic(guild, song_name, LOCK, playlist, duration, deltatime, bot,
-                  config, playtime, p, botid, port, msgid, channel):
+async def qqmusic(guild: str, song_name: str, LOCK: dict, playlist: dict,
+                  duration: dict, deltatime: int, bot: Bot, config: dict,
+                  playtime: dict, p: dict, botid: str, port: dict, msgid: dict,
+                  channel: dict):
     LOCK[guild] = True
     try:
-        if playlist[guild][0]['time'] > int(round(time.time() * 1000)):
+        if playlist[guild][0]['time'] > int(round(time() * 1000)):
             song_name = song_name.split('-')[-1]
             musicid = song_name
         else:
             url = "http://127.0.0.1:3300/search/quick?key=" + song_name
-            async with aiohttp.ClientSession(connector=TCPConnector(
-                    verify_ssl=False)) as session:
-                async with session.get(
-                        url=url, timeout=aiohttp.ClientTimeout(total=5)) as r:
+            async with ClientSession(connector=TCPConnector(
+                    ssl=False)) as session:
+                async with session.get(url=url,
+                                       timeout=ClientTimeout(total=5)) as r:
                     response = (await r.json())['data']['song']['itemlist'][0]
             musicid = response['mid']
 
         url = "http://127.0.0.1:3300/song?songmid=" + musicid
-        async with aiohttp.ClientSession(connector=TCPConnector(
-                verify_ssl=False)) as session:
-            async with session.get(
-                    url=url, timeout=aiohttp.ClientTimeout(total=5)) as r:
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            async with session.get(url=url,
+                                   timeout=ClientTimeout(total=5)) as r:
                 response = (await r.json())['data']['track_info']
         song_name = response['name']
         playlist[guild][0]['display'] = song_name
@@ -623,12 +616,12 @@ async def qqmusic(guild, song_name, LOCK, playlist, duration, deltatime, bot,
         getfile_url = 'http://127.0.0.1:3300/song/url?id=' + response[
             'mid'] + '&mediaId=' + response['file'][
                 'media_mid'] + '&ownCookie=1'
-        ban = re.compile('(惊雷)|(Lost Rivers)')
+        ban = compile('(惊雷)|(Lost Rivers)')
         resu = ban.findall(song_name)
         if len(resu) > 0:
             playlist[guild].pop(0)
             await bot.send(
-                await bot.fetch_public_channel(channel[guild]),
+                channel[guild],
                 '吃了吗，没吃吃我一拳',
             )
             duration[guild] = 0
@@ -636,15 +629,14 @@ async def qqmusic(guild, song_name, LOCK, playlist, duration, deltatime, bot,
             LOCK[guild] = False
             return
         try:
-            async with aiohttp.ClientSession(connector=TCPConnector(
-                    verify_ssl=False)) as session:
-                async with session.get(
-                        url=getfile_url,
-                        timeout=aiohttp.ClientTimeout(total=5)) as r:
+            async with ClientSession(connector=TCPConnector(
+                    ssl=False)) as session:
+                async with session.get(url=getfile_url,
+                                       timeout=ClientTimeout(total=5)) as r:
                     urlresponse = (await r.json())['data']
         except:
             await bot.send(
-                await bot.fetch_public_channel(channel[guild]),
+                channel[guild],
                 'api cookie失效',
             )
             playlist[guild].pop(0)
@@ -652,10 +644,9 @@ async def qqmusic(guild, song_name, LOCK, playlist, duration, deltatime, bot,
             playtime[guild] = 0
             LOCK[guild] = False
             return
-        async with aiohttp.ClientSession(connector=TCPConnector(
-                verify_ssl=False)) as session:
-            async with session.get(
-                    urlresponse, timeout=aiohttp.ClientTimeout(total=5)) as r:
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            async with session.get(urlresponse,
+                                   timeout=ClientTimeout(total=5)) as r:
                 with open(guild + "_" + botid + ".mp3", 'wb') as f:
                     while True:
                         chunk = await r.content.read()
@@ -696,19 +687,19 @@ async def qqmusic(guild, song_name, LOCK, playlist, duration, deltatime, bot,
                 Element.Button('清空歌单', 'CLEAR', Types.Click.RETURN_VAL),
                 Element.Button('循环模式', 'LOOP', Types.Click.RETURN_VAL)))
         cm.append(c)
-        msgid[guild] = (await bot.send(
-            await bot.fetch_public_channel(channel[guild]), cm))["msg_id"]
+        msgid[guild] = (await bot.send(channel[guild],
+                                       cm))["msg_id"]  # type: ignore
         playtime[guild] += deltatime
     except Exception as e:
         print(str(e))
         if str(e) == "list index out of range":
             await bot.send(
-                await bot.fetch_public_channel(channel[guild]),
+                channel[guild],
                 '未检索到此歌曲',
             )
         else:
             await bot.send(
-                await bot.fetch_public_channel(channel[guild]),
+                channel[guild],
                 '发生错误，请重试',
             )
         playlist[guild].pop(0)
@@ -720,33 +711,34 @@ async def qqmusic(guild, song_name, LOCK, playlist, duration, deltatime, bot,
     return
 
 
-async def migu(guild, song_name, LOCK, playlist, duration, deltatime, bot,
-               config, playtime, p, botid, port, msgid, channel):
+async def migu(guild: str, song_name: str, LOCK: dict, playlist: dict,
+               duration: dict, deltatime: int, bot: Bot, config: dict,
+               playtime: dict, p: dict, botid: str, port: dict, msgid: dict,
+               channel: dict):
     LOCK[guild] = True
     try:
-        if playlist[guild][0]['time'] > int(round(time.time() * 1000)):
+        if playlist[guild][0]['time'] > int(round(time() * 1000)):
             song_name = song_name.split('-')[-1]
             musicid = song_name
         else:
 
             url = "http://127.0.0.1:3400/song/find?keyword=" + song_name
-            async with aiohttp.ClientSession(connector=TCPConnector(
-                    verify_ssl=False)) as session:
-                async with session.get(
-                        url=url, timeout=aiohttp.ClientTimeout(total=5)) as r:
+            async with ClientSession(connector=TCPConnector(
+                    ssl=False)) as session:
+                async with session.get(url=url,
+                                       timeout=ClientTimeout(total=5)) as r:
                     response = await r.json()
             musicid = str(response['data']['cid'])
 
         url = 'http://127.0.0.1:3400/song?cid=' + musicid
-        async with aiohttp.ClientSession(connector=TCPConnector(
-                verify_ssl=False)) as session:
-            async with session.get(
-                    url=url, timeout=aiohttp.ClientTimeout(total=5)) as r:
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            async with session.get(url=url,
+                                   timeout=ClientTimeout(total=5)) as r:
                 response = (await r.json())["data"]
         duration[guild] = response["duration"] + deltatime
         song_name = response["name"]
         playlist[guild][0]['display'] = song_name
-        ban = re.compile('(惊雷)|(Lost Rivers)')
+        ban = compile('(惊雷)|(Lost Rivers)')
         resu = ban.findall(song_name)
         print(resu)
         if len(resu) > 0:
@@ -774,10 +766,9 @@ async def migu(guild, song_name, LOCK, playlist, duration, deltatime, bot,
 
         urlresponse = response["320"]
 
-        async with aiohttp.ClientSession(connector=TCPConnector(
-                verify_ssl=False)) as session:
-            async with session.get(
-                    urlresponse, timeout=aiohttp.ClientTimeout(total=5)) as r:
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            async with session.get(urlresponse,
+                                   timeout=ClientTimeout(total=5)) as r:
                 with open(guild + "_" + botid + ".mp3", 'wb') as f:
                     while True:
                         chunk = await r.content.read()
@@ -818,19 +809,19 @@ async def migu(guild, song_name, LOCK, playlist, duration, deltatime, bot,
                 Element.Button('清空歌单', 'CLEAR', Types.Click.RETURN_VAL),
                 Element.Button('循环模式', 'LOOP', Types.Click.RETURN_VAL)))
         cm.append(c)
-        msgid[guild] = (await bot.send(
-            await bot.fetch_public_channel(channel[guild]), cm))["msg_id"]
+        msgid[guild] = (await bot.send(channel[guild],
+                                       cm))["msg_id"]  # type: ignore
         playtime[guild] += deltatime
     except Exception as e:
         print(str(e))
         if str(e) == "'songs'":
             await bot.send(
-                await bot.fetch_public_channel(channel[guild]),
+                channel[guild],
                 '未检索到此歌曲',
             )
         else:
             await bot.send(
-                await bot.fetch_public_channel(channel[guild]),
+                channel[guild],
                 '发生错误，正在重试',
             )
         playlist[guild].pop(0)
@@ -842,21 +833,22 @@ async def migu(guild, song_name, LOCK, playlist, duration, deltatime, bot,
     return
 
 
-async def kmusic(guild, song_name, LOCK, playlist, duration, deltatime, bot,
-                 config, playtime, p, botid, port, msgid, channel):
+async def kmusic(guild: str, song_name: str, LOCK: dict, playlist: dict,
+                 duration: dict, deltatime: int, bot: Bot, config: dict,
+                 playtime: dict, p: dict, botid: str, port: dict, msgid: dict,
+                 channel: dict):
     LOCK[guild] = True
     try:
         song_name = parse_kmd_to_url(song_name)
-        async with aiohttp.ClientSession(connector=TCPConnector(
-                verify_ssl=False)) as session:
-            async with session.get(
-                    url=song_name,
-                    timeout=aiohttp.ClientTimeout(total=5)) as r:
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            async with session.get(url=song_name,
+                                   timeout=ClientTimeout(total=5)) as r:
                 response = await r.text()
 
         pattern = r'(?<=window.__DATA__ = ).*?(?=; </script>)'
-        response = json.loads(re.search(pattern, response).group())
-
+        tmp = search(pattern, response)
+        assert tmp is not None
+        response = loads(tmp.group())
         song_name = response['detail']['song_name']
 
         song_url = 'https://node.kg.qq.com/play?s=' + response['shareid']
@@ -866,12 +858,12 @@ async def kmusic(guild, song_name, LOCK, playlist, duration, deltatime, bot,
             'detail']['uid']
         pic_url = response['detail']['cover']
         urlresponse = response['detail']['playurl']
-        ban = re.compile('(惊雷)|(Lost Rivers)')
+        ban = compile('(惊雷)|(Lost Rivers)')
         resu = ban.findall(song_name)
         if len(resu) > 0:
             playlist[guild].pop(0)
             await bot.send(
-                await bot.fetch_public_channel(channel[guild]),
+                channel[guild],
                 '吃了吗，没吃吃我一拳',
             )
             duration[guild] = 0
@@ -882,20 +874,19 @@ async def kmusic(guild, song_name, LOCK, playlist, duration, deltatime, bot,
             duration[guild] = int(
                 response['detail']['segment_end'] / 1000) + deltatime
         else:
-            url = "http://127.0.0.1:3300/song?songmid=" + re.search(
-                r'(?<=songmid=)[0-9|a-z|A-Z]+',
-                response['songinfo']['data']['song_url']).group()
-
-            async with aiohttp.ClientSession(connector=TCPConnector(
-                    verify_ssl=False)) as session:
-                async with session.get(
-                        url=url, timeout=aiohttp.ClientTimeout(total=5)) as r:
+            tmp = search(r'(?<=songmid=)[0-9|a-z|A-Z]+',
+                         response['songinfo']['data']['song_url'])
+            assert tmp is not None
+            url = "http://127.0.0.1:3300/song?songmid=" + tmp.group()
+            async with ClientSession(connector=TCPConnector(
+                    ssl=False)) as session:
+                async with session.get(url=url,
+                                       timeout=ClientTimeout(total=5)) as r:
                     response = (await r.json())['data']['track_info']
             duration[guild] = response['interval'] + deltatime
-        async with aiohttp.ClientSession(connector=TCPConnector(
-                verify_ssl=False)) as session:
-            async with session.get(
-                    urlresponse, timeout=aiohttp.ClientTimeout(total=5)) as r:
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            async with session.get(urlresponse,
+                                   timeout=ClientTimeout(total=5)) as r:
                 with open(guild + "_" + botid + ".mp3", 'wb') as f:
                     while True:
                         chunk = await r.content.read()
@@ -936,19 +927,19 @@ async def kmusic(guild, song_name, LOCK, playlist, duration, deltatime, bot,
                 Element.Button('清空歌单', 'CLEAR', Types.Click.RETURN_VAL),
                 Element.Button('循环模式', 'LOOP', Types.Click.RETURN_VAL)))
         cm.append(c)
-        msgid[guild] = (await bot.send(
-            await bot.fetch_public_channel(channel[guild]), cm))["msg_id"]
+        msgid[guild] = (await bot.send(channel[guild],
+                                       cm))["msg_id"]  # type: ignore
         playtime[guild] += deltatime
     except Exception as e:
         print(str(e))
         if str(e) == "'songs'":
             await bot.send(
-                await bot.fetch_public_channel(channel[guild]),
+                channel[guild],
                 '未检索到此歌曲',
             )
         else:
             await bot.send(
-                await bot.fetch_public_channel(channel[guild]),
+                channel[guild],
                 '发生错误，正在重试',
             )
         playlist[guild].pop(0)
@@ -960,20 +951,25 @@ async def kmusic(guild, song_name, LOCK, playlist, duration, deltatime, bot,
     return
 
 
-async def get_result(link, event_loop, executor):
+async def get_result(link: str, event_loop: AbstractEventLoop,
+                     executor: ThreadPoolExecutor) -> YouTube:
     return await event_loop.run_in_executor(executor, YouTube, link)
 
 
-async def download(result, guild, event_loop, executor, botid):
+async def download(result: YouTube, guild: str, event_loop: AbstractEventLoop,
+                   executor: ThreadPoolExecutor, botid: str):
     tmp = await event_loop.run_in_executor(executor,
                                            result.streams.get_by_itag, 251)
+    assert tmp is not None
     await event_loop.run_in_executor(executor, tmp.download, '.',
                                      guild + "_" + botid + ".mp3")
 
 
-async def ytb(guild, song_name, LOCK, playlist, duration, deltatime, bot,
-              config, playtime, p, botid, port, msgid, channel, event_loop,
-              executor):
+async def ytb(guild: str, song_name: str, LOCK: dict, playlist: dict,
+              duration: dict, deltatime: int, bot: Bot, config: dict,
+              playtime: dict, p: dict, botid: str, port: dict, msgid: dict,
+              channel: dict, event_loop: AbstractEventLoop,
+              executor: ThreadPoolExecutor):
 
     LOCK[guild] = True
     try:
@@ -1006,26 +1002,26 @@ async def ytb(guild, song_name, LOCK, playlist, duration, deltatime, bot,
                 Element.Button('清空歌单', 'CLEAR', Types.Click.RETURN_VAL),
                 Element.Button('循环模式', 'LOOP', Types.Click.RETURN_VAL)))
         cm.append(c)
-        msgid[guild] = (await bot.send(
-            await bot.fetch_public_channel(channel[guild]), cm))["msg_id"]
+        msgid[guild] = (await bot.send(channel[guild],
+                                       cm))["msg_id"]  # type: ignore
         playtime[guild] += deltatime
     except Exception as e:
         print(str(e))
         if 'is unavailable' in str(e):
             await bot.send(
-                await bot.fetch_public_channel(channel[guild]),
+                channel[guild],
                 '未检索到此视频',
             )
         elif str(
                 e
         ) == r"regex_search: could not find match for (?:v=|\/)([0-9A-Za-z_-]{11}).*":
             await bot.send(
-                await bot.fetch_public_channel(channel[guild]),
+                channel[guild],
                 '链接输入有误',
             )
         else:
             await bot.send(
-                await bot.fetch_public_channel(channel[guild]),
+                channel[guild],
                 '发生错误，正在重试',
             )
         playlist[guild].pop(0)
@@ -1037,29 +1033,31 @@ async def ytb(guild, song_name, LOCK, playlist, duration, deltatime, bot,
     return
 
 
-async def fm(guild, song_name, LOCK, playlist, duration, deltatime, bot,
-             config, playtime, p, botid, port, msgid, channel):
+async def fm(guild: str, song_name: str, LOCK: dict, playlist: dict,
+             duration: dict, deltatime: int, bot: Bot, config: dict,
+             playtime: dict, p: dict, botid: str, port: dict, msgid: dict,
+             channel: dict):
     LOCK[guild] = True
     try:
         song_name = parse_kmd_to_url(song_name)
-        broadcastid = re.search(r'(?<=/radios/)[0-9]+', song_name).group()
+        tmp = search(r'(?<=/radios/)[0-9]+', song_name)
+        assert tmp is not None
+        broadcastid = tmp.group()
         url = 'https://webapi.qtfm.cn/api/pc/radio/' + broadcastid
-        async with aiohttp.ClientSession(connector=TCPConnector(
-                verify_ssl=False)) as session:
-            async with session.get(
-                    url=url, timeout=aiohttp.ClientTimeout(total=5)) as r:
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            async with session.get(url=url,
+                                   timeout=ClientTimeout(total=5)) as r:
                 response = await r.json()
         title = response['album']['title'] + '-' + response['album'][
             'nowplaying']['title']
         description = response['album']['description']
-        now = datetime.strptime(time.strftime("%H:%M:%S", time.localtime()),
-                                '%H:%M:%S')
+        now = datetime.strptime(strftime("%H:%M:%S", localtime()), '%H:%M:%S')
         end = datetime.strptime(response['album']['nowplaying']['end_time'],
                                 '%H:%M:%S')
         duration[guild] = (end - now).seconds
         playtime[guild] = 0
         kill(guild, p)
-        p[guild] = subprocess.Popen(
+        p[guild] = Popen(
             'ffmpeg -re -nostats -i "https://lhttp.qingting.fm/live/' +
             broadcastid +
             '/64k.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'
@@ -1081,8 +1079,8 @@ async def fm(guild, song_name, LOCK, playlist, duration, deltatime, bot,
                 Element.Button('清空歌单', 'CLEAR', Types.Click.RETURN_VAL),
                 Element.Button('循环模式', 'LOOP', Types.Click.RETURN_VAL)))
         cm.append(c)
-        msgid[guild] = (await bot.send(
-            await bot.fetch_public_channel(channel[guild]), cm))["msg_id"]
+        msgid[guild] = (await bot.send(channel[guild],
+                                       cm))["msg_id"]  # type: ignore
         playtime[guild] += deltatime
     except Exception as e:
         print(str(e))
