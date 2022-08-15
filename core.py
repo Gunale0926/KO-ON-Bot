@@ -385,6 +385,7 @@ def run(argsbotid: str):
                     if id(task) == task_id[msg.ctx.guild.id]:
                         print('cancelling the task {}: {}'.format(
                             id(task), task.cancel()))
+                task_id[msg.ctx.guild.id]=-1
             except:
                 pass
             if len(playlist[msg.ctx.guild.id]) == 0:
@@ -896,6 +897,7 @@ def run(argsbotid: str):
                         if id(task) == task_id[guild]:
                             print('cancelling the task {}: {}'.format(
                                 id(task), task.cancel()))
+                    task_id[guild]=-1
                 except:
                     pass
                 if len(playlist[guild]) == 0:
