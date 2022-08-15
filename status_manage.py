@@ -4,7 +4,7 @@ from re import search
 from subprocess import PIPE, STDOUT, Popen
 
 from aiohttp import ClientSession, ClientTimeout, TCPConnector
-from khl.card import Card, Module, Types
+from khl.card import Card, Module
 from psutil import Process
 
 from voiceAPI import Voice
@@ -408,16 +408,6 @@ def parse_kmd_to_url(link: str):
         return link
     except:
         return link
-
-
-async def delay_alignment(p: Popen):
-    while p.poll() is None:
-        line = p.stdout.readline().strip()
-        print(line)
-        if "#0:0" in line:
-            break
-        await sleep(0.01)
-
 
 def start_play(guild: str, port: dict, botid: str):
     return Popen(
