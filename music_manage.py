@@ -1,9 +1,8 @@
-from asyncio import AbstractEventLoop, CancelledError, ensure_future, sleep, subprocess
+from asyncio import AbstractEventLoop, CancelledError, ensure_future, sleep
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from json import dumps, loads
 from re import compile, search
-import ssl
 from subprocess import Popen
 from time import localtime, strftime, time
 
@@ -12,10 +11,20 @@ from aiohttp.client import ClientSession, ClientTimeout
 from khl.bot.bot import Bot
 from khl.card import Card, CardMessage, Element, Module, Types
 from pytube import YouTube
-from status_manage import (bsearch, delay_alignment, delmsg,
-                           get_netease_headers, get_playlist, get_qq_headers,
-                           getAudio, getInformation, kill, parse_kmd_to_url,
-                           start_play, uptmsg)
+from status_manage import (bsearch, delmsg, get_netease_headers, get_playlist,
+                           get_qq_headers, getAudio, getInformation, kill,
+                           parse_kmd_to_url, start_play, uptmsg)
+from func_timeout import func_set_timeout, FunctionTimedOut
+
+
+@func_set_timeout(7)
+def delay_alignment(p: Popen):
+    while p.poll() is None:
+        assert p.stdout is not None
+        line = p.stdout.readline().strip()
+        print(line)
+        if "#0:0" in line:
+            break
 
 
 async def netease(guild: str, song_name: str, LOCK: dict, netease_cookie: str,
@@ -279,7 +288,18 @@ async def netease(guild: str, song_name: str, LOCK: dict, netease_cookie: str,
                             except:
                                 pass
             print(lrc_dict)
-            await delay_alignment(voiceffmpeg[guild])
+            try:
+                delay_alignment(voiceffmpeg[guild])
+            except FunctionTimedOut:
+                playlist[guild].pop(0)
+                duration[guild] = 0
+                playtime[guild] = 0
+                LOCK[guild] = False
+                await bot.send(
+                    channel[guild],
+                    '发生错误，请重试',
+                )
+                return
             now_time = 0.000
             while True:
                 cm = CardMessage()
@@ -380,7 +400,18 @@ async def bili(guild: str, song_name: str, LOCK: dict, playlist: dict,
             playtime[guild] = 0
             kill(guild, p)
             p[guild] = start_play(guild, port, botid)
-            await delay_alignment(voiceffmpeg[guild])
+            try:
+                delay_alignment(voiceffmpeg[guild])
+            except FunctionTimedOut:
+                playlist[guild].pop(0)
+                duration[guild] = 0
+                playtime[guild] = 0
+                LOCK[guild] = False
+                await bot.send(
+                    channel[guild],
+                    '发生错误，请重试',
+                )
+                return
             playlist[guild][0]['display'] = title
             await delmsg(msgid[guild], config, botid, session)
             cm = CardMessage()
@@ -585,7 +616,18 @@ async def neteaseradio(guild: str, song_name: str, LOCK: dict,
             playtime[guild] = 0
 
             await delmsg(msgid[guild], config, botid, session)
-            await delay_alignment(voiceffmpeg[guild])
+            try:
+                delay_alignment(voiceffmpeg[guild])
+            except FunctionTimedOut:
+                playlist[guild].pop(0)
+                duration[guild] = 0
+                playtime[guild] = 0
+                LOCK[guild] = False
+                await bot.send(
+                    channel[guild],
+                    '发生错误，请重试',
+                )
+                return
             cm = CardMessage()
             c = get_playlist(guild, playlist)
             cm.append(c)
@@ -717,7 +759,18 @@ async def qqmusic(guild: str, song_name: str, LOCK: dict, playlist: dict,
 
             p[guild] = start_play(guild, port, botid)
             await delmsg(msgid[guild], config, botid, session)
-            await delay_alignment(voiceffmpeg[guild])
+            try:
+                delay_alignment(voiceffmpeg[guild])
+            except FunctionTimedOut:
+                playlist[guild].pop(0)
+                duration[guild] = 0
+                playtime[guild] = 0
+                LOCK[guild] = False
+                await bot.send(
+                    channel[guild],
+                    '发生错误，请重试',
+                )
+                return
             cm = CardMessage()
             c = get_playlist(guild, playlist)
             cm.append(c)
@@ -840,7 +893,18 @@ async def migu(guild: str, song_name: str, LOCK: dict, playlist: dict,
             if len(song_name) > 50:
                 song_name = song_name[:50]
             await delmsg(msgid[guild], config, botid, session)
-            await delay_alignment(voiceffmpeg[guild])
+            try:
+                delay_alignment(voiceffmpeg[guild])
+            except FunctionTimedOut:
+                playlist[guild].pop(0)
+                duration[guild] = 0
+                playtime[guild] = 0
+                LOCK[guild] = False
+                await bot.send(
+                    channel[guild],
+                    '发生错误，请重试',
+                )
+                return
             cm = CardMessage()
             c = get_playlist(guild, playlist)
             cm.append(c)
@@ -961,7 +1025,18 @@ async def kmusic(guild: str, song_name: str, LOCK: dict, playlist: dict,
             p[guild] = start_play(guild, port, botid)
             playlist[guild][0]['display'] = song_name
             await delmsg(msgid[guild], config, botid, session)
-            await delay_alignment(voiceffmpeg[guild])
+            try:
+                delay_alignment(voiceffmpeg[guild])
+            except FunctionTimedOut:
+                playlist[guild].pop(0)
+                duration[guild] = 0
+                playtime[guild] = 0
+                LOCK[guild] = False
+                await bot.send(
+                    channel[guild],
+                    '发生错误，请重试',
+                )
+                return
             cm = CardMessage()
             c = get_playlist(guild, playlist)
             cm.append(c)
@@ -1050,7 +1125,18 @@ async def ytb(guild: str, song_name: str, LOCK: dict, playlist: dict,
         p[guild] = start_play(guild, port, botid)
         async with ClientSession(connector=TCPConnector(ssl=False)) as session:
             await delmsg(msgid[guild], config, botid, session)
-        await delay_alignment(voiceffmpeg[guild])
+        try:
+            delay_alignment(voiceffmpeg[guild])
+        except FunctionTimedOut:
+            playlist[guild].pop(0)
+            duration[guild] = 0
+            playtime[guild] = 0
+            LOCK[guild] = False
+            await bot.send(
+                channel[guild],
+                '发生错误，请重试',
+            )
+            return
         cm = CardMessage()
         c = get_playlist(guild, playlist)
         cm.append(c)
@@ -1132,7 +1218,19 @@ async def fm(guild: str, song_name: str, LOCK: dict, playlist: dict,
                 + port[guild],
                 shell=True)
             await delmsg(msgid[guild], config, botid, session)
-            await delay_alignment(voiceffmpeg[guild])
+            try:
+                delay_alignment(voiceffmpeg[guild])
+            except FunctionTimedOut:
+                playlist[guild].pop(0)
+                playtime[guild] = 0
+                duration[guild] = 0
+                playtime[guild] = 0
+                LOCK[guild] = False
+                await bot.send(
+                    channel[guild],
+                    '发生错误，请重试',
+                )
+                return
             playlist[guild][0]['display'] = title
             cm = CardMessage()
             c = get_playlist(guild, playlist)
