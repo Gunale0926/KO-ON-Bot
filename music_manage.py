@@ -1,9 +1,10 @@
-from asyncio import AbstractEventLoop, CancelledError, ensure_future, sleep, subprocess
+from asyncio import AbstractEventLoop, CancelledError
+
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from json import dumps, loads
+from logging import Logger
 from re import compile, search
-import ssl
 from subprocess import Popen
 from time import localtime, strftime, time
 
@@ -12,20 +13,21 @@ from aiohttp.client import ClientSession, ClientTimeout
 from khl.bot.bot import Bot
 from khl.card import Card, CardMessage, Element, Module, Types
 from pytube import YouTube
-from status_manage import (bsearch, delay_alignment, delmsg,
-                           get_netease_headers, get_playlist, get_qq_headers,
-                           getAudio, getInformation, kill, parse_kmd_to_url,
-                           start_play, uptmsg)
-
+from status_manage import (bsearch, delmsg, get_netease_headers, get_playlist,
+                           get_qq_headers, getAudio, getInformation, kill,
+                           lrc_list_to_dict, parse_kmd_to_url, play_lyrics,
+                           start_delay, start_play)
 
 async def netease(guild: str, song_name: str, LOCK: dict, netease_cookie: str,
                   playlist: dict, duration: dict, deltatime: int, bot: Bot,
                   config: dict, playtime: dict, p: dict, botid: str,
                   port: dict, msgid: dict, channel: dict,
-                  event_loop: AbstractEventLoop, voiceffmpeg: dict):
+                  event_loop: AbstractEventLoop, voiceffmpeg: dict,
+                  executor: ThreadPoolExecutor, logger: Logger):
     LOCK[guild] = True
     musicid = ""
     headers = get_netease_headers(netease_cookie)
+    lyrics_broadid = ''
     async with ClientSession(connector=TCPConnector(ssl=False)) as session:
         try:
 
@@ -51,11 +53,11 @@ async def netease(guild: str, song_name: str, LOCK: dict, netease_cookie: str,
             playlist[guild][0]['display'] = song_name
             ban = compile('(惊雷)|(Lost Rivers)')
             resu = ban.findall(song_name)
-            print(resu)
+            logger.warning(resu)
             if len(resu) > 0:
 
                 playlist[guild].pop(0)
-                await bot.send(
+                await bot.client.send(
                     await bot.fetch_public_channel(config["channel"]),
                     '吃了吗，没吃吃我一拳',
                 )
@@ -81,7 +83,7 @@ async def netease(guild: str, song_name: str, LOCK: dict, netease_cookie: str,
                                    headers=headers,
                                    timeout=ClientTimeout(total=5)) as r:
                 urlresponse = (await r.json())['data'][0]['url']
-            print(urlresponse)
+            logger.warning(urlresponse)
             if urlresponse is None:
                 urlresponse = ''
 
@@ -95,7 +97,7 @@ async def netease(guild: str, song_name: str, LOCK: dict, netease_cookie: str,
                                        headers=headers,
                                        timeout=ClientTimeout(total=5)) as r:
                     urlresponse = (await r.json())['data']['url']
-                print(urlresponse)
+                logger.warning(urlresponse)
             if urlresponse is None:
                 urlresponse = ''
 
@@ -108,7 +110,7 @@ async def netease(guild: str, song_name: str, LOCK: dict, netease_cookie: str,
                                        headers=headers,
                                        timeout=ClientTimeout(total=5)) as r:
                     urlresponse = (await r.json())['data'][0]['url']
-                print(urlresponse)
+                logger.warning(urlresponse)
             if urlresponse is None:
                 urlresponse = ''
 
@@ -121,14 +123,14 @@ async def netease(guild: str, song_name: str, LOCK: dict, netease_cookie: str,
                                        headers=headers,
                                        timeout=ClientTimeout(total=5)) as r:
                     urlresponse = (await r.json())['data']['url']
-                print(urlresponse)
+                logger.warning(urlresponse)
             if urlresponse is None:
                 urlresponse = ''
 
             playtime[guild] = 0
             if len(song_name) > 50:
                 song_name = song_name[:50]
-            await delmsg(msgid[guild], config, botid, session)
+            await delmsg(msgid[guild], config, botid, session, logger)
             cm = CardMessage()
             c = get_playlist(guild, playlist)
             cm.append(c)
@@ -160,8 +162,17 @@ async def netease(guild: str, song_name: str, LOCK: dict, netease_cookie: str,
                     Element.Button('循环模式', 'LOOP', Types.Click.RETURN_VAL)),
                 color="#6AC629")
             cm.append(c)
-            msgid[guild] = (await bot.send(channel[guild],
-                                           cm))["msg_id"]  # type: ignore
+            msgid[guild] = (await
+                            bot.client.send(channel[guild],
+                                            cm))["msg_id"]  # type: ignore
+            cm = CardMessage()
+            c = Card(theme=Types.Theme.NONE)
+            c.append(Module.Section("正在启动歌词板"))
+            cm.append(c)
+            LOCK[guild] = False
+            lyrics_broadid = (await
+                              bot.client.send(channel[guild],
+                                              cm))["msg_id"]  # type: ignore
             playtime[guild] += deltatime
             if urlresponse.endswith("flac"):
                 async with session.get(urlresponse,
@@ -172,7 +183,7 @@ async def netease(guild: str, song_name: str, LOCK: dict, netease_cookie: str,
                             if not chunk:
                                 break
                             f.write(chunk)
-                kill(guild, p)
+                kill(guild, p, logger)
                 p[guild] = Popen(
                     'ffmpeg -re -nostats -i "' + guild + "_" + botid +
                     '.flac" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'
@@ -187,7 +198,7 @@ async def netease(guild: str, song_name: str, LOCK: dict, netease_cookie: str,
                             if not chunk:
                                 break
                             f.write(chunk)
-                kill(guild, p)
+                kill(guild, p, logger)
                 p[guild] = start_play(guild, port, botid)
 
         except Exception as e:
@@ -195,25 +206,19 @@ async def netease(guild: str, song_name: str, LOCK: dict, netease_cookie: str,
             duration[guild] = 0
             playtime[guild] = 0
             LOCK[guild] = False
-            print(str(e))
+            logger.warning(str(e))
             if str(e) == "'songs'":
-                await bot.send(
+                await bot.client.send(
                     channel[guild],
                     '未检索到此歌曲',
                 )
             else:
-                await bot.send(
+                await bot.client.send(
                     channel[guild],
                     '发生错误，请重试',
                 )
             return
-        cm = CardMessage()
-        c = Card(theme=Types.Theme.NONE)
-        c.append(Module.Section("正在启动歌词板"))
-        cm.append(c)
         LOCK[guild] = False
-        lyrics_broadid = lyrics_broadid = (await bot.send(
-            channel[guild], cm))["msg_id"]  # type: ignore
         try:
             lrc_dict = {}
             lrc_trans_dict = {}
@@ -234,120 +239,51 @@ async def netease(guild: str, song_name: str, LOCK: dict, netease_cookie: str,
                     lyrics_trans_list = (
                         await
                         r.json())['tlyric']['lyric'].strip().splitlines()
+                    assert lyrics_trans_list != []
                 except:
-                    pass
+                    enable_trans = False
                 try:
                     enable_roma = True
                     lyrics_roma_list = (
                         await
                         r.json())['romalrc']['lyric'].strip().splitlines()
+                    assert lyrics_roma_list != []
                 except:
-                    pass
-            for lyric in lyrics_list:
-                lrc_word = lyric.replace("[", "]").strip().split("]")
-                for i in range(len(lrc_word) - 1):
-                    if lrc_word[i]:
-                        try:
-                            timestamp = lrc_word[i].strip().split(":")
-                            lrc_dict[abs(
-                                int(timestamp[0]) * 60.000 +
-                                float(timestamp[1]) - 0.5)] = lrc_word[-1]
-                        except:
-                            pass
+                    enable_roma = False
+            lrc_list_to_dict(lyrics_list, lrc_dict, -0.5)
             if enable_trans:
-                for lyric in lyrics_trans_list:
-                    lrc_word = lyric.replace("[", "]").strip().split("]")
-                    for i in range(len(lrc_word) - 1):
-                        if lrc_word[i]:
-                            try:
-                                timestamp = lrc_word[i].strip().split(":")
-                                lrc_trans_dict[abs(
-                                    int(timestamp[0]) * 60.000 +
-                                    float(timestamp[1]) - 0.5)] = lrc_word[-1]
-                            except:
-                                pass
+                lrc_list_to_dict(lyrics_trans_list, lrc_trans_dict, -0.5)
             if enable_roma:
-                for lyric in lyrics_roma_list:
-                    lrc_word = lyric.replace("[", "]").strip().split("]")
-                    for i in range(len(lrc_word) - 1):
-                        if lrc_word[i]:
-                            try:
-                                timestamp = lrc_word[i].strip().split(":")
-                                lrc_roma_dict[abs(
-                                    int(timestamp[0]) * 60.000 +
-                                    float(timestamp[1]) - 0.5)] = lrc_word[-1]
-                            except:
-                                pass
-            print(lrc_dict)
-            await delay_alignment(voiceffmpeg[guild])
-            now_time = 0.000
-            while True:
-                cm = CardMessage()
-                c = Card(theme=Types.Theme.NONE)
-                endflag = True
-                new_now_time = 0.000
-
-                for key in sorted(lrc_dict.keys()):
-                    s = ""
-                    if lrc_dict[key] == "":
-                        continue
-                    if key >= now_time and key < (now_time + 5.000):
-                        endflag = False
-                        if enable_roma:
-                            try:
-                                if lrc_roma_dict[key] != "":
-                                    s += "*" + lrc_roma_dict[key] + "*\n"
-                            except:
-                                s += "\n"
-                        s += "**" + lrc_dict[key] + "**\n"
-                        if enable_trans:
-                            try:
-                                if lrc_trans_dict[key] != "":
-                                    s += lrc_trans_dict[key] + "\n"
-                            except:
-                                s += "\n"
-                        s += "---"
-                        new_now_time = key
-                        c.append(
-                            Module.Section(Element.Text(s,
-                                                        type=Types.Text.KMD)))
-                    elif key >= (now_time + 5.000):
-                        endflag = False
-                        new_now_time = key
-                        break
-
-                cm.append(c)
-                ensure_future(uptmsg(lyrics_broadid, dumps(cm), config, botid,
-                                     session),
-                              loop=event_loop)
-                if endflag:
-                    break
-                if now_time == new_now_time:
-                    break
-                await sleep(new_now_time - now_time)
-                now_time = new_now_time
-            await sleep(float(duration[guild]) - new_now_time)
-            await delmsg(lyrics_broadid, config, botid, session)
-
+                lrc_list_to_dict(lyrics_roma_list, lrc_roma_dict, -0.5)
+            if (await start_delay(bot, guild, voiceffmpeg, logger, event_loop,
+                                  executor, playlist, duration, playtime, LOCK,
+                                  channel)) == 'ERROR':
+                return
+            await play_lyrics(guild, lrc_dict, lrc_roma_dict, lrc_trans_dict,
+                              enable_roma, enable_trans, lyrics_broadid,
+                              config, botid, session, logger, event_loop,
+                              duration)
         except Exception as e:
-            print(str(e))
-            print("!!!!")
-            await bot.send(
+            logger.warning(str(e))
+            logger.warning("!!!!")
+            await bot.client.send(
                 channel[guild],
                 '歌词板获取错误',
             )
-            await delmsg(lyrics_broadid, config, botid, session)
+            await delmsg(lyrics_broadid, config, botid, session, logger)
         except CancelledError:
-            await delmsg(lyrics_broadid, config, botid, session)
-            print('cancel task')
+            await delmsg(lyrics_broadid, config, botid, session, logger)
+            logger.warning('cancel task')
             raise
         return
 
 
-async def bili(guild: str, song_name: str, LOCK: dict, playlist: dict,
-               duration: dict, deltatime: int, bot: Bot, config: dict,
-               playtime: dict, p: dict, botid: str, port: dict, msgid: dict,
-               channel: dict, voiceffmpeg: dict):
+async def bili(guild: str, song_name: str, LOCK: dict, bili_cookie: str,
+               playlist: dict, duration: dict, deltatime: int, bot: Bot,
+               config: dict, playtime: dict, p: dict, botid: str, port: dict,
+               msgid: dict, channel: dict, voiceffmpeg: dict,
+               event_loop: AbstractEventLoop, executor: ThreadPoolExecutor,
+               logger: Logger):
     LOCK[guild] = True
     try:
         async with ClientSession(connector=TCPConnector(ssl=False)) as session:
@@ -358,18 +294,18 @@ async def bili(guild: str, song_name: str, LOCK: dict, playlist: dict,
                 song_name = tmp.group()
             except:
                 song_name = (await
-                             bsearch(song_name,
+                             bsearch(song_name, bili_cookie,
                                      session))['data']['result'][0]['bvid']
             item = await getInformation(duration, deltatime, song_name, guild,
-                                        session)
+                                        session, logger)
             bvid, cid, title, mid, name, pic = await getAudio(
                 guild, item, botid, session)
-            print(duration[guild])
+            logger.warning(duration[guild])
             ban = compile('(惊雷)|(Lost Rivers)')
             resu = ban.findall(title)
             if len(resu) > 0:
                 playlist[guild].pop(0)
-                await bot.send(
+                await bot.client.send(
                     channel[guild],
                     '吃了吗，没吃吃我一拳',
                 )
@@ -378,11 +314,14 @@ async def bili(guild: str, song_name: str, LOCK: dict, playlist: dict,
                 LOCK[guild] = False
                 return
             playtime[guild] = 0
-            kill(guild, p)
+            kill(guild, p, logger)
             p[guild] = start_play(guild, port, botid)
-            await delay_alignment(voiceffmpeg[guild])
+            if (await start_delay(bot, guild, voiceffmpeg, logger, event_loop,
+                                  executor, playlist, duration, playtime, LOCK,
+                                  channel)) == 'ERROR':
+                return
             playlist[guild][0]['display'] = title
-            await delmsg(msgid[guild], config, botid, session)
+            await delmsg(msgid[guild], config, botid, session, logger)
             cm = CardMessage()
             c = get_playlist(guild, playlist)
             cm.append(c)
@@ -408,29 +347,30 @@ async def bili(guild: str, song_name: str, LOCK: dict, playlist: dict,
                                         Types.Click.RETURN_VAL)),
                      color="#6AC629")
             cm.append(c)
-            msgid[guild] = (await bot.send(channel[guild],
-                                           cm))["msg_id"]  # type: ignore
+            msgid[guild] = (await
+                            bot.client.send(channel[guild],
+                                            cm))["msg_id"]  # type: ignore
             playtime[guild] += deltatime
     except Exception as e:
         playlist[guild].pop(0)
         duration[guild] = 0
         playtime[guild] = 0
         LOCK[guild] = False
-        print(str(e))
+        logger.warning(str(e))
         if str(e) == "'data'" or str(e) == "'result'":
-            await bot.send(
+            await bot.client.send(
                 channel[guild],
                 '未检索到此歌曲',
             )
         elif str(e) == "'NoneType' object has no attribute 'group'":
-            await bot.send(
+            await bot.client.send(
                 channel[guild],
                 'BV号或链接输入有误',
             )
         else:
-            await bot.send(
+            await bot.client.send(
                 channel[guild],
-                '发生错误，请重试',
+                '发生错误，请重试（本视频可能需要填写b_cookie）',
             )
         return
     LOCK[guild] = False
@@ -441,23 +381,25 @@ async def neteaseradio(guild: str, song_name: str, LOCK: dict,
                        netease_cookie: str, playlist: dict, duration: dict,
                        deltatime: int, bot: Bot, config: dict, playtime: dict,
                        p: dict, botid: str, port: dict, msgid: dict,
-                       channel: dict, voiceffmpeg: dict):
+                       channel: dict, voiceffmpeg: dict,
+                       event_loop: AbstractEventLoop,
+                       executor: ThreadPoolExecutor, logger: Logger):
     LOCK[guild] = True
     try:
         async with ClientSession(connector=TCPConnector(ssl=False)) as session:
             headers = get_netease_headers(netease_cookie)
             song_name = song_name.replace(" ", "")
             song_name = song_name.split('-')[-1]
-            print(song_name)
+            logger.warning(song_name)
             url = 'http://127.0.0.1:3000/dj/program/detail?id=' + song_name
 
             async with session.get(url=url,
                                    headers=headers,
                                    timeout=ClientTimeout(total=5)) as r:
                 response = await r.json()
-            print(response['code'])
+            logger.warning(response['code'])
             if response['code'] == 404 or response['code'] == 400:
-                await bot.send(
+                await bot.client.send(
                     channel[guild],
                     '未检索到此歌曲',
                 )
@@ -473,10 +415,10 @@ async def neteaseradio(guild: str, song_name: str, LOCK: dict,
             playlist[guild][0]['display'] = song_name
             ban = compile('(惊雷)|(Lost Rivers)')
             resu = ban.findall(song_name)
-            print(resu)
+            logger.warning(resu)
             if len(resu) > 0:
                 playlist[guild].pop(0)
-                await bot.send(
+                await bot.client.send(
                     channel[guild],
                     '吃了吗，没吃吃我一拳',
                 )
@@ -501,7 +443,7 @@ async def neteaseradio(guild: str, song_name: str, LOCK: dict,
                                    headers=headers,
                                    timeout=ClientTimeout(total=5)) as r:
                 urlresponse = (await r.json())['data'][0]['url']
-            print(urlresponse)
+            logger.warning(urlresponse)
             if urlresponse is None:
                 urlresponse = ''
             if (urlresponse.startswith("http://m702") or
@@ -513,7 +455,7 @@ async def neteaseradio(guild: str, song_name: str, LOCK: dict,
                                        headers=headers,
                                        timeout=ClientTimeout(total=5)) as r:
                     urlresponse = (await r.json())['data']['url']
-                print(urlresponse)
+                logger.warning(urlresponse)
             if urlresponse is None:
                 urlresponse = ''
 
@@ -526,7 +468,7 @@ async def neteaseradio(guild: str, song_name: str, LOCK: dict,
                                        headers=headers,
                                        timeout=ClientTimeout(total=5)) as r:
                     urlresponse = (await r.json())['data'][0]['url']
-                print(urlresponse)
+                logger.warning(urlresponse)
             if urlresponse is None:
                 urlresponse = ''
 
@@ -539,7 +481,7 @@ async def neteaseradio(guild: str, song_name: str, LOCK: dict,
                                        headers=headers,
                                        timeout=ClientTimeout(total=5)) as r:
                     urlresponse = (await r.json())['data']['url']
-                print(urlresponse)
+                logger.warning(urlresponse)
             if urlresponse is None:
                 urlresponse = ''
             if (urlresponse.startswith("http://m702") or
@@ -551,7 +493,7 @@ async def neteaseradio(guild: str, song_name: str, LOCK: dict,
                                        headers=headers,
                                        timeout=ClientTimeout(total=5)) as r:
                     urlresponse = (await r.json())['data'][0]['url']
-                print(urlresponse)
+                logger.warning(urlresponse)
             if urlresponse is None:
                 urlresponse = ''
             if urlresponse.endswith("flac"):
@@ -564,7 +506,7 @@ async def neteaseradio(guild: str, song_name: str, LOCK: dict,
                             if not chunk:
                                 break
                             f.write(chunk)
-                kill(guild, p)
+                kill(guild, p, logger)
                 p[guild] = Popen(
                     'ffmpeg -re -nostats -i "' + guild +
                     '.flac" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'
@@ -580,12 +522,15 @@ async def neteaseradio(guild: str, song_name: str, LOCK: dict,
                             if not chunk:
                                 break
                             f.write(chunk)
-                kill(guild, p)
+                kill(guild, p, logger)
                 p[guild] = start_play(guild, port, botid)
             playtime[guild] = 0
 
-            await delmsg(msgid[guild], config, botid, session)
-            await delay_alignment(voiceffmpeg[guild])
+            await delmsg(msgid[guild], config, botid, session, logger)
+            if (await start_delay(bot, guild, voiceffmpeg, logger, event_loop,
+                                  executor, playlist, duration, playtime, LOCK,
+                                  channel)) == 'ERROR':
+                return
             cm = CardMessage()
             c = get_playlist(guild, playlist)
             cm.append(c)
@@ -617,17 +562,18 @@ async def neteaseradio(guild: str, song_name: str, LOCK: dict,
                     Element.Button('循环模式', 'LOOP', Types.Click.RETURN_VAL)),
                 color="#6AC629")
             cm.append(c)
-            print(dumps(cm))
-            msgid[guild] = (await bot.send(channel[guild],
-                                           cm))["msg_id"]  # type: ignore
+            logger.warning(dumps(cm))
+            msgid[guild] = (await
+                            bot.client.send(channel[guild],
+                                            cm))["msg_id"]  # type: ignore
             playtime[guild] += deltatime
     except Exception as e:
         playlist[guild].pop(0)
         duration[guild] = 0
         playtime[guild] = 0
         LOCK[guild] = False
-        print(str(e))
-        await bot.send(
+        logger.warning(str(e))
+        await bot.client.send(
             channel[guild],
             '发生错误，请重试',
         )
@@ -639,10 +585,14 @@ async def neteaseradio(guild: str, song_name: str, LOCK: dict,
 async def qqmusic(guild: str, song_name: str, LOCK: dict, playlist: dict,
                   duration: dict, deltatime: int, bot: Bot, config: dict,
                   playtime: dict, p: dict, botid: str, port: dict, msgid: dict,
-                  channel: dict, qq_cookie: str, voiceffmpeg: dict):
+                  channel: dict, qq_cookie: str, voiceffmpeg: dict,
+                  event_loop: AbstractEventLoop, executor: ThreadPoolExecutor,
+                  logger: Logger):
     LOCK[guild] = True
-    try:
-        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+    lyrics_broadid = ''
+    async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+        try:
+
             if playlist[guild][0]['time'] > int(round(time() * 1000)):
                 song_name = song_name.split('-')[-1]
                 musicid = song_name
@@ -679,7 +629,7 @@ async def qqmusic(guild: str, song_name: str, LOCK: dict, playlist: dict,
             resu = ban.findall(song_name)
             if len(resu) > 0:
                 playlist[guild].pop(0)
-                await bot.send(
+                await bot.client.send(
                     channel[guild],
                     '吃了吗，没吃吃我一拳',
                 )
@@ -692,7 +642,7 @@ async def qqmusic(guild: str, song_name: str, LOCK: dict, playlist: dict,
                                        timeout=ClientTimeout(total=5)) as r:
                     urlresponse = (await r.json())['data']
             except:
-                await bot.send(
+                await bot.client.send(
                     channel[guild],
                     'api cookie失效',
                 )
@@ -713,11 +663,14 @@ async def qqmusic(guild: str, song_name: str, LOCK: dict, playlist: dict,
                         f.write(chunk)
 
             playtime[guild] = 0
-            kill(guild, p)
+            kill(guild, p, logger)
 
             p[guild] = start_play(guild, port, botid)
-            await delmsg(msgid[guild], config, botid, session)
-            await delay_alignment(voiceffmpeg[guild])
+            await delmsg(msgid[guild], config, botid, session, logger)
+            if (await start_delay(bot, guild, voiceffmpeg, logger, event_loop,
+                                  executor, playlist, duration, playtime, LOCK,
+                                  channel)) == 'ERROR':
+                return
             cm = CardMessage()
             c = get_playlist(guild, playlist)
             cm.append(c)
@@ -749,34 +702,87 @@ async def qqmusic(guild: str, song_name: str, LOCK: dict, playlist: dict,
                     Element.Button('循环模式', 'LOOP', Types.Click.RETURN_VAL)),
                 color="#6AC629")
             cm.append(c)
-            msgid[guild] = (await bot.send(channel[guild],
-                                           cm))["msg_id"]  # type: ignore
+            msgid[guild] = (await
+                            bot.client.send(channel[guild],
+                                            cm))["msg_id"]  # type: ignore
+            cm = CardMessage()
+            c = Card(theme=Types.Theme.NONE)
+            c.append(Module.Section("正在启动歌词板"))
+            cm.append(c)
+            LOCK[guild] = False
+            lyrics_broadid = (await
+                              bot.client.send(channel[guild],
+                                              cm))["msg_id"]  # type: ignore
             playtime[guild] += deltatime
-    except Exception as e:
-        playlist[guild].pop(0)
-        duration[guild] = 0
-        playtime[guild] = 0
+        except Exception as e:
+            playlist[guild].pop(0)
+            duration[guild] = 0
+            playtime[guild] = 0
+            LOCK[guild] = False
+            logger.warning(str(e))
+            if str(e) == "list index out of range":
+                await bot.client.send(
+                    channel[guild],
+                    '未检索到此歌曲',
+                )
+            else:
+                await bot.client.send(
+                    channel[guild],
+                    '发生错误，请重试',
+                )
+            return
         LOCK[guild] = False
-        print(str(e))
-        if str(e) == "list index out of range":
-            await bot.send(
+        try:
+            lrc_dict = {}
+            lrc_trans_dict = {}
+            lrc_roma_dict = {}
+            enable_trans = False
+            enable_roma = False
+            lyrics_list = []
+            lyrics_trans_list = []
+            lyrics_url = "http://127.0.0.1:3300/lyric?songmid=" + musicid
+            async with session.get(url=lyrics_url,
+                                   headers=headers,
+                                   timeout=ClientTimeout(total=5)) as r:
+                lyrics_list = (await
+                               r.json())['data']['lyric'].strip().splitlines()
+                try:
+                    enable_trans = True
+                    lyrics_trans_list = (
+                        await r.json())['data']['trans'].strip().splitlines()
+                    assert lyrics_trans_list != []
+                except:
+                    enable_trans = False
+            lrc_list_to_dict(lyrics_list, lrc_dict, -1.5)
+            if enable_trans:
+                lrc_list_to_dict(lyrics_trans_list, lrc_trans_dict, -1.5)
+            await start_delay(bot, guild, voiceffmpeg, logger, event_loop,
+                              executor, playlist, duration, playtime, LOCK,
+                              channel)
+            await play_lyrics(guild, lrc_dict, lrc_roma_dict, lrc_trans_dict,
+                              enable_roma, enable_trans, lyrics_broadid,
+                              config, botid, session, logger, event_loop,
+                              duration)
+        except Exception as e:
+            logger.warning(str(e))
+            logger.warning("!!!!")
+            await bot.client.send(
                 channel[guild],
-                '未检索到此歌曲',
+                '歌词板获取错误',
             )
-        else:
-            await bot.send(
-                channel[guild],
-                '发生错误，请重试',
-            )
+            await delmsg(lyrics_broadid, config, botid, session, logger)
+        except CancelledError:
+            await delmsg(lyrics_broadid, config, botid, session, logger)
+            logger.warning('cancel task')
+            raise
         return
-    LOCK[guild] = False
-    return
 
 
 async def migu(guild: str, song_name: str, LOCK: dict, playlist: dict,
                duration: dict, deltatime: int, bot: Bot, config: dict,
                playtime: dict, p: dict, botid: str, port: dict, msgid: dict,
-               channel: dict, voiceffmpeg: dict):
+               channel: dict, voiceffmpeg: dict, event_loop: AbstractEventLoop,
+               executor: ThreadPoolExecutor, logger: Logger):
     LOCK[guild] = True
     try:
         async with ClientSession(connector=TCPConnector(ssl=False)) as session:
@@ -800,11 +806,11 @@ async def migu(guild: str, song_name: str, LOCK: dict, playlist: dict,
             playlist[guild][0]['display'] = song_name
             ban = compile('(惊雷)|(Lost Rivers)')
             resu = ban.findall(song_name)
-            print(resu)
+            logger.warning(resu)
             if len(resu) > 0:
 
                 playlist[guild].pop(0)
-                await bot.send(
+                await bot.client.send(
                     await bot.fetch_public_channel(config["channel"]),
                     '吃了吗，没吃吃我一拳',
                 )
@@ -834,13 +840,16 @@ async def migu(guild: str, song_name: str, LOCK: dict, playlist: dict,
                         if not chunk:
                             break
                         f.write(chunk)
-            kill(guild, p)
+            kill(guild, p, logger)
             p[guild] = start_play(guild, port, botid)
             playtime[guild] = 0
             if len(song_name) > 50:
                 song_name = song_name[:50]
-            await delmsg(msgid[guild], config, botid, session)
-            await delay_alignment(voiceffmpeg[guild])
+            await delmsg(msgid[guild], config, botid, session, logger)
+            if (await start_delay(bot, guild, voiceffmpeg, logger, event_loop,
+                                  executor, playlist, duration, playtime, LOCK,
+                                  channel)) == 'ERROR':
+                return
             cm = CardMessage()
             c = get_playlist(guild, playlist)
             cm.append(c)
@@ -872,22 +881,23 @@ async def migu(guild: str, song_name: str, LOCK: dict, playlist: dict,
                     Element.Button('循环模式', 'LOOP', Types.Click.RETURN_VAL)),
                 color="#6AC629")
             cm.append(c)
-            msgid[guild] = (await bot.send(channel[guild],
-                                           cm))["msg_id"]  # type: ignore
+            msgid[guild] = (await
+                            bot.client.send(channel[guild],
+                                            cm))["msg_id"]  # type: ignore
             playtime[guild] += deltatime
     except Exception as e:
         playlist[guild].pop(0)
         duration[guild] = 0
         playtime[guild] = 0
         LOCK[guild] = False
-        print(str(e))
+        logger.warning(str(e))
         if str(e) == "'songs'":
-            await bot.send(
+            await bot.client.send(
                 channel[guild],
                 '未检索到此歌曲',
             )
         else:
-            await bot.send(
+            await bot.client.send(
                 channel[guild],
                 '发生错误，正在重试',
             )
@@ -899,7 +909,9 @@ async def migu(guild: str, song_name: str, LOCK: dict, playlist: dict,
 async def kmusic(guild: str, song_name: str, LOCK: dict, playlist: dict,
                  duration: dict, deltatime: int, bot: Bot, config: dict,
                  playtime: dict, p: dict, botid: str, port: dict, msgid: dict,
-                 channel: dict, voiceffmpeg: dict):
+                 channel: dict, voiceffmpeg: dict,
+                 event_loop: AbstractEventLoop, executor: ThreadPoolExecutor,
+                 logger: Logger):
     LOCK[guild] = True
     try:
         async with ClientSession(connector=TCPConnector(ssl=False)) as session:
@@ -926,7 +938,7 @@ async def kmusic(guild: str, song_name: str, LOCK: dict, playlist: dict,
             resu = ban.findall(song_name)
             if len(resu) > 0:
                 playlist[guild].pop(0)
-                await bot.send(
+                await bot.client.send(
                     channel[guild],
                     '吃了吗，没吃吃我一拳',
                 )
@@ -956,12 +968,15 @@ async def kmusic(guild: str, song_name: str, LOCK: dict, playlist: dict,
                         f.write(chunk)
 
             playtime[guild] = 0
-            kill(guild, p)
+            kill(guild, p, logger)
 
             p[guild] = start_play(guild, port, botid)
             playlist[guild][0]['display'] = song_name
-            await delmsg(msgid[guild], config, botid, session)
-            await delay_alignment(voiceffmpeg[guild])
+            await delmsg(msgid[guild], config, botid, session, logger)
+            if (await start_delay(bot, guild, voiceffmpeg, logger, event_loop,
+                                  executor, playlist, duration, playtime, LOCK,
+                                  channel)) == 'ERROR':
+                return
             cm = CardMessage()
             c = get_playlist(guild, playlist)
             cm.append(c)
@@ -992,22 +1007,23 @@ async def kmusic(guild: str, song_name: str, LOCK: dict, playlist: dict,
                     Element.Button('循环模式', 'LOOP', Types.Click.RETURN_VAL)),
                 color="#6AC629")
             cm.append(c)
-            msgid[guild] = (await bot.send(channel[guild],
-                                           cm))["msg_id"]  # type: ignore
+            msgid[guild] = (await
+                            bot.client.send(channel[guild],
+                                            cm))["msg_id"]  # type: ignore
             playtime[guild] += deltatime
     except Exception as e:
         playlist[guild].pop(0)
         duration[guild] = 0
         playtime[guild] = 0
         LOCK[guild] = False
-        print(str(e))
+        logger.warning(str(e))
         if str(e) == "'songs'":
-            await bot.send(
+            await bot.client.send(
                 channel[guild],
                 '未检索到此歌曲',
             )
         else:
-            await bot.send(
+            await bot.client.send(
                 channel[guild],
                 '发生错误，正在重试',
             )
@@ -1034,7 +1050,7 @@ async def ytb(guild: str, song_name: str, LOCK: dict, playlist: dict,
               duration: dict, deltatime: int, bot: Bot, config: dict,
               playtime: dict, p: dict, botid: str, port: dict, msgid: dict,
               channel: dict, event_loop: AbstractEventLoop,
-              executor: ThreadPoolExecutor, voiceffmpeg: dict):
+              executor: ThreadPoolExecutor, voiceffmpeg: dict, logger: Logger):
 
     LOCK[guild] = True
     try:
@@ -1046,11 +1062,14 @@ async def ytb(guild: str, song_name: str, LOCK: dict, playlist: dict,
         duration[guild] = result.length
         playtime[guild] = 0
         await download(result, guild, event_loop, executor, botid)
-        kill(guild, p)
+        kill(guild, p, logger)
         p[guild] = start_play(guild, port, botid)
         async with ClientSession(connector=TCPConnector(ssl=False)) as session:
-            await delmsg(msgid[guild], config, botid, session)
-        await delay_alignment(voiceffmpeg[guild])
+            await delmsg(msgid[guild], config, botid, session, logger)
+        if (await start_delay(bot, guild, voiceffmpeg, logger, event_loop,
+                              executor, playlist, duration, playtime, LOCK,
+                              channel)) == 'ERROR':
+            return
         cm = CardMessage()
         c = get_playlist(guild, playlist)
         cm.append(c)
@@ -1068,29 +1087,29 @@ async def ytb(guild: str, song_name: str, LOCK: dict, playlist: dict,
                      Element.Button('循环模式', 'LOOP', Types.Click.RETURN_VAL)),
                  color="#6AC629")
         cm.append(c)
-        msgid[guild] = (await bot.send(channel[guild],
-                                       cm))["msg_id"]  # type: ignore
+        msgid[guild] = (await bot.client.send(channel[guild],
+                                              cm))["msg_id"]  # type: ignore
         playtime[guild] += deltatime
     except Exception as e:
         playlist[guild].pop(0)
         duration[guild] = 0
         playtime[guild] = 0
         LOCK[guild] = False
-        print(str(e))
+        logger.warning(str(e))
         if 'is unavailable' in str(e):
-            await bot.send(
+            await bot.client.send(
                 channel[guild],
                 '未检索到此视频',
             )
         elif str(
                 e
         ) == r"regex_search: could not find match for (?:v=|\/)([0-9A-Za-z_-]{11}).*":
-            await bot.send(
+            await bot.client.send(
                 channel[guild],
                 '链接输入有误',
             )
         else:
-            await bot.send(
+            await bot.client.send(
                 channel[guild],
                 '发生错误，正在重试',
             )
@@ -1102,7 +1121,8 @@ async def ytb(guild: str, song_name: str, LOCK: dict, playlist: dict,
 async def fm(guild: str, song_name: str, LOCK: dict, playlist: dict,
              duration: dict, deltatime: int, bot: Bot, config: dict,
              playtime: dict, p: dict, botid: str, port: dict, msgid: dict,
-             channel: dict, voiceffmpeg: dict):
+             channel: dict, voiceffmpeg: dict, event_loop: AbstractEventLoop,
+             executor: ThreadPoolExecutor, logger: Logger):
     LOCK[guild] = True
     try:
         async with ClientSession(connector=TCPConnector(ssl=False)) as session:
@@ -1124,15 +1144,18 @@ async def fm(guild: str, song_name: str, LOCK: dict, playlist: dict,
                 response['album']['nowplaying']['end_time'], '%H:%M:%S')
             duration[guild] = (end - now).seconds
             playtime[guild] = 0
-            kill(guild, p)
+            kill(guild, p, logger)
             p[guild] = Popen(
                 'ffmpeg -re -nostats -i "https://lhttp.qingting.fm/live/' +
                 broadcastid +
                 '/64k.mp3" -acodec libopus -ab 128k -f mpegts zmq:tcp://127.0.0.1:'
                 + port[guild],
                 shell=True)
-            await delmsg(msgid[guild], config, botid, session)
-            await delay_alignment(voiceffmpeg[guild])
+            await delmsg(msgid[guild], config, botid, session, logger)
+            if (await start_delay(bot, guild, voiceffmpeg, logger, event_loop,
+                                  executor, playlist, duration, playtime, LOCK,
+                                  channel)) == 'ERROR':
+                return
             playlist[guild][0]['display'] = title
             cm = CardMessage()
             c = get_playlist(guild, playlist)
@@ -1151,16 +1174,17 @@ async def fm(guild: str, song_name: str, LOCK: dict, playlist: dict,
                                         Types.Click.RETURN_VAL)),
                      color="#6AC629")
             cm.append(c)
-            msgid[guild] = (await bot.send(channel[guild],
-                                           cm))["msg_id"]  # type: ignore
+            msgid[guild] = (await
+                            bot.client.send(channel[guild],
+                                            cm))["msg_id"]  # type: ignore
             playtime[guild] += deltatime
     except Exception as e:
-        print(str(e))
+        logger.warning(str(e))
         playlist[guild].pop(0)
         duration[guild] = 0
         playtime[guild] = 0
         LOCK[guild] = False
-        await bot.send(
+        await bot.client.send(
             channel[guild],
             '发生错误，正在重试',
         )

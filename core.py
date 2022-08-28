@@ -7,14 +7,16 @@ from re import search
 from time import time
 
 from aiohttp import ClientSession, ClientTimeout, TCPConnector
-from khl import Bot, Event, EventTypes, Message
+from khl import Bot, Event, EventTypes, SoftwareTypes, Message
 from khl.card import CardMessage
+
 from psutil import Process
 
 import music_manage
 import status_manage
 from voiceAPI import Voice
 from importlib import reload as reload_module
+from logging import WARNING, FileHandler, Formatter, StreamHandler, getLogger
 
 config = status_manage.load_config()
 playlist = {}
@@ -42,29 +44,48 @@ netease_cookie = config["n_cookie"]
 qq_cookie = config["q_cookie"]
 qq_id = config["q_id"]
 qq_enable = config["qq_enable"]
+bili_cookie = config["b_cookie"]
 rtcpport = ''
 lyrics = {}
 task_id = {}
-
 
 def run(argsbotid: str):
     global rtcpport
     eventloop = new_event_loop()
     set_event_loop(eventloop)
-    executor = ThreadPoolExecutor()
+    executor = ThreadPoolExecutor(1000)
+
     botid = argsbotid
     rtcpport = botid + '234'
 
     bot = Bot(token=config['token' + botid])
+    logger = getLogger('bot')
+    logger.setLevel(level=WARNING)
 
-    join_command = status_manage.custom_join_command(config, botid)
-    default_platform = status_manage.custom_preferred_platform(config, botid)
+    formatter = Formatter(
+        '%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s'
+    )
+
+    file_handler = FileHandler(filename=f'bot{botid}.log', mode='a')
+    file_handler.setLevel(level=WARNING)
+    file_handler.setFormatter(formatter)
+
+    stream_handler = StreamHandler()
+    stream_handler.setLevel(level=WARNING)
+    stream_handler.setFormatter(formatter)
+
+    logger.addHandler(file_handler)
+    logger.addHandler(stream_handler)
+    join_command = status_manage.custom_join_command(config, botid, logger)
+    default_platform = status_manage.custom_preferred_platform(
+        config, botid, logger)
+
     try:
         import signal
         signal.signal(signal.SIGCHLD, signal.SIG_IGN)  # type: ignore
-        print("platform:linux")
+        logger.warning("platform:linux")
     except:
-        print("platform:windows")
+        logger.warning("platform:windows")
 
     @bot.command(name='导入歌单')
     async def import_playlist(msg: Message, linkid: str):
@@ -85,8 +106,15 @@ def run(argsbotid: str):
                 return
             global playlist
             global netease_cookie
+            enable_netease = True
+            enable_qqmusic = True
+            if "163.com" in linkid:
+                enable_qqmusic = False
+            if "qq.com" in linkid:
+                enable_netease = False
             try:
                 if "fcgi-bin" in linkid:
+                    enable_netease = False
                     linkid = status_manage.parse_kmd_to_url(linkid)
                     headers = status_manage.get_qq_headers(qq_cookie)
 
@@ -100,63 +128,65 @@ def run(argsbotid: str):
                 assert tmp is not None
                 linkid = tmp.group()
             except Exception as e:
-                print(e)
-            print(linkid)
+                logger.warning(e)
+            logger.warning(linkid)
             headers = status_manage.get_netease_headers(netease_cookie)
-            try:
-
-                offset = 0
-                while True:
-                    url = "http://127.0.0.1:3000/playlist/track/all?id=" + linkid + '&limit=1000&offset=' + str(
-                        offset * 1000)
-                    offset += 1
+            if enable_netease:
+                try:
+                    offset = 0
+                    while True:
+                        url = "http://127.0.0.1:3000/playlist/track/all?id=" + linkid + '&limit=1000&offset=' + str(
+                            offset * 1000)
+                        offset += 1
+                        async with session.get(
+                                url,
+                                headers=headers,
+                                timeout=ClientTimeout(total=5)) as r:
+                            resp_json = await r.json()
+                            songs = resp_json.get("songs", [])
+                            if len(songs) == 0:
+                                break
+                            for song in songs:
+                                playlist[msg.ctx.guild.id].append({
+                                    'name':
+                                    song.get('name', '') + "-" +
+                                    song.get('ar', [])[0].get('name', '') +
+                                    '-' + str(song.get('id')),
+                                    'userid':
+                                    msg.author.id,
+                                    'type':
+                                    '网易',
+                                    'time':
+                                    int(round(time() * 1000)) + 1000000000000,
+                                    'display':
+                                    song.get('name', '')
+                                })
+                except:
+                    pass
+            if enable_qqmusic:
+                try:
+                    url = "http://127.0.0.1:3300/songlist?id=" + linkid
                     async with session.get(
-                            url, headers=headers,
-                            timeout=ClientTimeout(total=5)) as r:
+                            url, timeout=ClientTimeout(total=5)) as r:
                         resp_json = await r.json()
-                        songs = resp_json.get("songs", [])
-                        if len(songs) == 0:
-                            break
+                        songs = resp_json.get("data", {}).get("songlist", [])
                         for song in songs:
                             playlist[msg.ctx.guild.id].append({
                                 'name':
-                                song.get('name', '') + "-" +
-                                song.get('ar', [])[0].get('name', '') + '-' +
-                                str(song.get('id')),
+                                song.get('songname', '') + "-" +
+                                song.get('singer', [])[0].get('name', '') +
+                                '-' + str(song.get('songmid')),
                                 'userid':
                                 msg.author.id,
                                 'type':
-                                '网易',
+                                'qq',
                                 'time':
                                 int(round(time() * 1000)) + 1000000000000,
                                 'display':
-                                song.get('name', '')
+                                song.get('songname', '')
                             })
-            except:
-                pass
-            try:
-                url = "http://127.0.0.1:3300/songlist?id=" + linkid
-                async with session.get(url,
-                                       timeout=ClientTimeout(total=5)) as r:
-                    resp_json = await r.json()
-                    songs = resp_json.get("data", {}).get("songlist", [])
-                    for song in songs:
-                        playlist[msg.ctx.guild.id].append({
-                            'name':
-                            song.get('songname', '') + "-" +
-                            song.get('singer', [])[0].get('name', '') + '-' +
-                            str(song.get('songmid')),
-                            'userid':
-                            msg.author.id,
-                            'type':
-                            'qq',
-                            'time':
-                            int(round(time() * 1000)) + 1000000000000,
-                            'display':
-                            song.get('songname', '')
-                        })
-            except:
-                pass
+                except:
+                    pass
             await msg.ctx.channel.send("导入完成")
 
     @bot.command(name='导入专辑')
@@ -302,7 +332,7 @@ def run(argsbotid: str):
                 await msg.ctx.channel.send("请先进入一个语音频道或退出重进")
                 JOINLOCK = False
                 return
-            print(voiceid)
+            logger.warning(voiceid)
             try:
                 task_id[msg.ctx.guild.id] = -1
                 singleloops[msg.ctx.guild.id] = 0
@@ -322,13 +352,12 @@ def run(argsbotid: str):
 
                 ensure_future(status_manage.start(voice[msg.ctx.guild.id],
                                                   voiceid, msg.ctx.guild.id,
-                                                  voiceffmpeg, port),
+                                                  voiceffmpeg, port, logger),
                               loop=event_loop)
                 rtcpport = str(int(rtcpport) + 1)
-                async with ClientSession(connector=TCPConnector(
-                        ssl=False)) as session:
-                    print(await status_manage.status_active_music(
-                        str(len(voice)), config, botid, session))
+                await bot.client.update_listening_music(
+                    f"已用槽位:{str(len(voice))}", "KO-ON",
+                    SoftwareTypes.CLOUD_MUSIC)
                 JOINLOCK = False
             except:
                 JOINLOCK = False
@@ -379,12 +408,13 @@ def run(argsbotid: str):
             while LOCK[msg.ctx.guild.id]:
                 await sleep(0.1)
             LOCK[msg.ctx.guild.id] = True
-            status_manage.kill(msg.ctx.guild.id, p)
+            status_manage.kill(msg.ctx.guild.id, p, logger)
             try:
                 for task in all_tasks():
                     if id(task) == task_id[msg.ctx.guild.id]:
-                        print('cancelling the task {}: {}'.format(
+                        logger.warning('cancelling the task {}: {}'.format(
                             id(task), task.cancel()))
+                task_id[msg.ctx.guild.id] = -1
             except:
                 pass
             if len(playlist[msg.ctx.guild.id]) == 0:
@@ -469,6 +499,7 @@ def run(argsbotid: str):
         global qq_cookie
         global qq_id
         global qq_enable
+        global bili_cookie
         try:
             reload_module(status_manage)
             reload_module(music_manage)
@@ -479,6 +510,7 @@ def run(argsbotid: str):
             qq_cookie = config["q_cookie"]
             qq_id = config["q_id"]
             qq_enable = config["qq_enable"]
+            bili_cookie = config["b_cookie"]
             firstlogin = True
             await msg.ctx.channel.send("reload成功")
         except:
@@ -561,7 +593,7 @@ def run(argsbotid: str):
                     proc.kill()
                 process.kill()
             except Exception as e:
-                print(e)
+                logger.warning(e)
             voice[msg.ctx.guild.id].is_exit = True
             del voice[msg.ctx.guild.id]
             voicechannelid[msg.ctx.guild.id] = voiceid
@@ -571,11 +603,11 @@ def run(argsbotid: str):
             event_loop = get_event_loop()
             ensure_future(status_manage.start(voice[msg.ctx.guild.id], voiceid,
                                               msg.ctx.guild.id, voiceffmpeg,
-                                              port),
+                                              port, logger),
                           loop=event_loop)
             rtcpport = str(int(rtcpport) + 1)
         except Exception as e:
-            print(e)
+            logger.warning(e)
 
     @bot.command(name="搜索")
     async def musicsearch(msg: Message, *args):
@@ -655,7 +687,7 @@ def run(argsbotid: str):
         global channel
         global rtcpport
         try:
-            print('loading cache')
+            logger.warning('loading cache')
 
             with open(botid + 'playlistcache', 'r', encoding='utf-8') as f:
                 playlist = eval(f.read())
@@ -666,7 +698,7 @@ def run(argsbotid: str):
             with open(botid + 'channelidcache', 'r', encoding='utf-8') as f:
                 tmpchannel = eval(f.read())
             for guild, voiceid in voicechannelid.items():
-                print(voiceid)
+                logger.warning(voiceid)
                 channel[guild] = await bot.fetch_public_channel(
                     tmpchannel[guild])
                 pop_now[guild] = False
@@ -678,13 +710,13 @@ def run(argsbotid: str):
                 port[guild] = rtcpport
                 voice[guild] = Voice(config['token' + botid])
                 ensure_future(status_manage.start(voice[guild], voiceid, guild,
-                                                  voiceffmpeg, port),
+                                                  voiceffmpeg, port, logger),
                               loop=event_loop)
                 rtcpport = str(int(rtcpport) + 1)
                 await sleep(0.3)
 
         except:
-            print('load cache fail')
+            logger.warning('load cache fail')
 
     @bot.task.add_interval(seconds=deltatime)
     async def update_played_time_and_change_music():
@@ -705,9 +737,9 @@ def run(argsbotid: str):
         global pop_now
         if firstlogin:
             firstlogin = False
-            await status_manage.login(botid, qq_enable, netease_phone,
+            await status_manage.login(bot, botid, qq_enable, netease_phone,
                                       netease_passwd, qq_cookie, qq_id, voice,
-                                      config)
+                                      logger)
         if load:
             load = False
             event_loop = get_event_loop()
@@ -722,29 +754,29 @@ def run(argsbotid: str):
                     guild, -1) == -1 or voiceffmpeg.get(guild, -1) == -1:
                 continue
             if len(playlist[guild]) == 0:
-                print("timeout +7")
+                logger.warning("timeout +7")
                 timeout[guild] += deltatime
                 if timeout[guild] > 60:
-                    print("timeout auto leave")
+                    logger.warning("timeout auto leave")
                     async with ClientSession(connector=TCPConnector(
                             ssl=False)) as session:
                         await status_manage.delmsg(msgid[guild], config, botid,
-                                                   session)
-                    await status_manage.disconnect(guild, voice, timeout,
+                                                   session, logger)
+                    await status_manage.disconnect(bot, guild, voice, timeout,
                                                    voiceffmpeg, LOCK, msgid,
                                                    voicechannelid, channel,
                                                    singleloops, playtime,
-                                                   duration, port, config,
-                                                   botid, pop_now, task_id)
+                                                   duration, port, pop_now,
+                                                   task_id, logger)
                     deletelist.append(guild)
                 continue
             else:
                 timeout[guild] = 0
                 if playtime[guild] == 0:
                     if LOCK[guild]:
-                        print("LOCK")
+                        logger.warning("LOCK")
                         continue
-                    print("playing process start")
+                    logger.warning("playing process start")
                     savetag = True
                     if singleloops[guild] == 3:
                         shuffle(playlist[guild])
@@ -763,37 +795,42 @@ def run(argsbotid: str):
                                 guild, song_name, LOCK, netease_cookie,
                                 playlist, duration, deltatime, bot, config,
                                 playtime, p, botid, port, msgid, channel,
-                                event_loop, voiceffmpeg),
+                                event_loop, voiceffmpeg, executor, logger),
                                           loop=event_loop))
                     elif playlist[guild][0]['type'] in {
                             'bili', 'b站', 'bilibili', 'Bili', 'Bilibili', 'B站'
                     }:
                         ensure_future(music_manage.bili(
-                            guild, song_name, LOCK, playlist, duration,
-                            deltatime, bot, config, playtime, p, botid, port,
-                            msgid, channel, voiceffmpeg),
+                            guild, song_name, LOCK, bili_cookie, playlist,
+                            duration, deltatime, bot, config, playtime, p,
+                            botid, port, msgid, channel, voiceffmpeg,
+                            event_loop, executor, logger),
                                       loop=event_loop)
                     elif playlist[guild][0]['type'] in {'网易电台', '电台'}:
                         ensure_future(music_manage.neteaseradio(
                             guild, song_name, LOCK, netease_cookie, playlist,
                             duration, deltatime, bot, config, playtime, p,
-                            botid, port, msgid, channel, voiceffmpeg),
+                            botid, port, msgid, channel, voiceffmpeg,
+                            event_loop, executor, logger),
                                       loop=event_loop)
                     elif playlist[guild][0]['type'] in {
                             'qq', 'qq音乐', 'QQ', 'QQ音乐'
                     }:
-                        ensure_future(music_manage.qqmusic(
-                            guild, song_name, LOCK, playlist, duration,
-                            deltatime, bot, config, playtime, p, botid, port,
-                            msgid, channel, qq_cookie, voiceffmpeg),
-                                      loop=event_loop)
+                        task_id[guild] = id(
+                            ensure_future(music_manage.qqmusic(
+                                guild, song_name, LOCK, playlist, duration,
+                                deltatime, bot, config, playtime, p, botid,
+                                port, msgid, channel, qq_cookie, voiceffmpeg,
+                                event_loop, executor, logger),
+                                          loop=event_loop))
                     elif playlist[guild][0]['type'] in {
                             'k歌', 'K歌', '全民k歌', '全民K歌'
                     }:
                         ensure_future(music_manage.kmusic(
                             guild, song_name, LOCK, playlist, duration,
                             deltatime, bot, config, playtime, p, botid, port,
-                            msgid, channel, voiceffmpeg),
+                            msgid, channel, voiceffmpeg, event_loop, executor,
+                            logger),
                                       loop=event_loop)
                     elif playlist[guild][0]['type'] in {
                             'ytb', 'YTB', 'youtube', 'Youtube', '油管'
@@ -801,38 +838,40 @@ def run(argsbotid: str):
                         ensure_future(music_manage.ytb(
                             guild, song_name, LOCK, playlist, duration,
                             deltatime, bot, config, playtime, p, botid, port,
-                            msgid, channel, event_loop, executor, voiceffmpeg),
+                            msgid, channel, event_loop, executor, voiceffmpeg,
+                            logger),
                                       loop=event_loop)
                     elif playlist[guild][0]['type'] in {'FM', 'fm', 'Fm'}:
-                        ensure_future(music_manage.fm(guild, song_name, LOCK,
-                                                      playlist, duration,
-                                                      deltatime, bot, config,
-                                                      playtime, p, botid, port,
-                                                      msgid, channel,
-                                                      voiceffmpeg),
+                        ensure_future(music_manage.fm(
+                            guild, song_name, LOCK, playlist, duration,
+                            deltatime, bot, config, playtime, p, botid, port,
+                            msgid, channel, voiceffmpeg, event_loop, executor,
+                            logger),
                                       loop=event_loop)
                     else:
                         ensure_future(music_manage.migu(
                             guild, song_name, LOCK, playlist, duration,
                             deltatime, bot, config, playtime, p, botid, port,
-                            msgid, channel, voiceffmpeg),
+                            msgid, channel, voiceffmpeg, event_loop, executor,
+                            logger),
                                       loop=event_loop)
                 else:
                     if playtime[guild] < duration[guild]:
-                        print("playing process time+7")
+                        logger.warning("playing process time+7")
                         playtime[guild] += deltatime
                     else:
-                        print("playing process end")
-                        status_manage.kill(guild, p)
+                        logger.warning("playing process end")
+                        status_manage.kill(guild, p, logger)
                         async with ClientSession(connector=TCPConnector(
                                 ssl=False)) as session:
                             await status_manage.delmsg(msgid[guild], config,
-                                                       botid, session)
+                                                       botid, session, logger)
                         try:
                             for task in all_tasks():
                                 if id(task) == task_id[guild]:
-                                    print('cancelling the task {}: {}'.format(
-                                        id(task), task.cancel()))
+                                    logger.warning(
+                                        'cancelling the task {}: {}'.format(
+                                            id(task), task.cancel()))
                                     task_id[guild] = -1
                         except:
                             pass
@@ -865,20 +904,20 @@ def run(argsbotid: str):
             url = 'http://127.0.0.1:3000/login/refresh'
             async with session.get(url=url,
                                    timeout=ClientTimeout(total=5)) as r:
-                print(await r.text())
+                logger.warning(await r.text())
             if qq_enable == '1':
                 url = 'http://127.0.0.1:3300/user/refresh'
                 async with session.get(url=url,
                                        timeout=ClientTimeout(total=5)) as r:
-                    print(await r.text())
-        print('刷新登录')
+                    logger.warning(await r.text())
+        logger.warning('刷新登录')
 
     @bot.on_event(EventTypes.MESSAGE_BTN_CLICK)
     async def on_btn_clicked(_: Bot, e: Event):
-        print(
+        logger.warning(
             f'''{e.body['user_info']['nickname']} took the {e.body['value']} pill'''
         )
-        print(e.body["guild_id"])
+        logger.warning(e.body["guild_id"])
         global playlist
         global playtime
         global duration
@@ -890,12 +929,13 @@ def run(argsbotid: str):
                 while LOCK[guild]:
                     await sleep(0.1)
                 LOCK[guild] = True
-                status_manage.kill(guild, p)
+                status_manage.kill(guild, p, logger)
                 try:
                     for task in all_tasks():
                         if id(task) == task_id[guild]:
-                            print('cancelling the task {}: {}'.format(
+                            logger.warning('cancelling the task {}: {}'.format(
                                 id(task), task.cancel()))
+                    task_id[guild] = -1
                 except:
                     pass
                 if len(playlist[guild]) == 0:
@@ -907,7 +947,7 @@ def run(argsbotid: str):
                     playlist[guild].pop(0)
                 playtime[guild] = 0
                 duration[guild] = 0
-                await bot.send(
+                await bot.client.send(
                     channel[guild],
                     "来自" + e.body['user_info']['nickname'] + "的操作:已切换下一首")
                 LOCK[guild] = False
@@ -922,7 +962,7 @@ def run(argsbotid: str):
                     now = playlist[guild][0]
                     playlist[guild] = []
                     playlist[guild].append(now)
-                await bot.send(
+                await bot.client.send(
                     channel[guild],
                     "来自" + e.body['user_info']['nickname'] + "的操作:清空完成")
                 LOCK[guild] = False
@@ -936,22 +976,22 @@ def run(argsbotid: str):
                 LOCK[guild] = True
                 if singleloops[guild] == 0:
                     singleloops[guild] = 1
-                    await bot.send(
+                    await bot.client.send(
                         channel[guild], "来自" +
                         e.body['user_info']['nickname'] + "的操作:循环模式已调整为:单曲循环")
                 elif singleloops[guild] == 1:
                     singleloops[guild] = 2
-                    await bot.send(
+                    await bot.client.send(
                         channel[guild], "来自" +
                         e.body['user_info']['nickname'] + "的操作:循环模式已调整为:列表循环")
                 elif singleloops[guild] == 2:
                     singleloops[guild] = 3
-                    await bot.send(
+                    await bot.client.send(
                         channel[guild], "来自" +
                         e.body['user_info']['nickname'] + "的操作:循环模式已调整为:随机播放")
                 else:
                     singleloops[guild] = 0
-                    await bot.send(
+                    await bot.client.send(
                         channel[guild], "来自" +
                         e.body['user_info']['nickname'] + "的操作:循环模式已调整为:关闭")
                 LOCK[guild] = False
@@ -966,7 +1006,7 @@ def run(argsbotid: str):
                 await sleep(0.1)
             LOCK[guild] = True
             global playlist
-            print(e.body)
+            logger.warning(e.body)
             if playlist[guild][0]['userid'] == e.body['user_id']:
                 pop_now[guild] = True
             now = playlist[guild][0]
@@ -980,7 +1020,7 @@ def run(argsbotid: str):
             LOCK[guild] = False
         except Exception as err:
             LOCK[guild] = False
-            print(str(err))
+            logger.warning(str(err))
 
     bot.command.update_prefixes("")
 
