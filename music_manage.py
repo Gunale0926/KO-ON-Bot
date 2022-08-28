@@ -18,6 +18,7 @@ from status_manage import (bsearch, delmsg, get_netease_headers, get_playlist,
                            lrc_list_to_dict, parse_kmd_to_url, play_lyrics,
                            start_delay, start_play)
 
+
 async def netease(guild: str, song_name: str, LOCK: dict, netease_cookie: str,
                   playlist: dict, duration: dict, deltatime: int, bot: Bot,
                   config: dict, playtime: dict, p: dict, botid: str,
@@ -255,6 +256,7 @@ async def netease(guild: str, song_name: str, LOCK: dict, netease_cookie: str,
                 lrc_list_to_dict(lyrics_trans_list, lrc_trans_dict, -0.5)
             if enable_roma:
                 lrc_list_to_dict(lyrics_roma_list, lrc_roma_dict, -0.5)
+            logger.warning(lrc_dict)
             if (await start_delay(bot, guild, voiceffmpeg, logger, event_loop,
                                   executor, playlist, duration, playtime, LOCK,
                                   channel)) == 'ERROR':
@@ -756,6 +758,7 @@ async def qqmusic(guild: str, song_name: str, LOCK: dict, playlist: dict,
             lrc_list_to_dict(lyrics_list, lrc_dict, -1.5)
             if enable_trans:
                 lrc_list_to_dict(lyrics_trans_list, lrc_trans_dict, -1.5)
+            logger.warning(lrc_dict)
             await start_delay(bot, guild, voiceffmpeg, logger, event_loop,
                               executor, playlist, duration, playtime, LOCK,
                               channel)

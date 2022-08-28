@@ -21,6 +21,7 @@ platform = {
     'Youtube', '油管', 'FM', 'fm', 'Fm'
 }
 
+
 def custom_join_command(config: dict, botid: str, logger: Logger) -> str:
     try:
         assert config['join_command' + botid] != ''
