@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from json import dumps, loads
 from logging import Logger
-from re import compile, search
+from re import search
 from subprocess import Popen
 from time import localtime, strftime, time
 
@@ -17,6 +17,8 @@ from status_manage import (bsearch, delmsg, get_netease_headers, get_playlist,
                            get_qq_headers, getAudio, getInformation, kill,
                            lrc_list_to_dict, parse_kmd_to_url, play_lyrics,
                            start_delay, start_play)
+
+ban_list = {"惊雷", "Lost Rivers"}
 
 
 async def netease(guild: str, song_name: str, LOCK: dict, netease_cookie: str,
@@ -52,14 +54,11 @@ async def netease(guild: str, song_name: str, LOCK: dict, netease_cookie: str,
             duration[guild] = int(response['dt'] / 1000) + deltatime
             song_name = response['name']
             playlist[guild][0]['display'] = song_name
-            ban = compile('(惊雷)|(Lost Rivers)')
-            resu = ban.findall(song_name)
-            logger.warning(resu)
-            if len(resu) > 0:
-
+            if [ban for ban in ban_list if ban in song_name]:
+                logger.warning('song banned')
                 playlist[guild].pop(0)
                 await bot.client.send(
-                    await bot.fetch_public_channel(channel[guild]),
+                    channel[guild],
                     '吃了吗，没吃吃我一拳',
                 )
                 duration[guild] = 0
@@ -303,9 +302,8 @@ async def bili(guild: str, song_name: str, LOCK: dict, bili_cookie: str,
             bvid, cid, title, mid, name, pic = await getAudio(
                 guild, item, botid, session)
             logger.warning(duration[guild])
-            ban = compile('(惊雷)|(Lost Rivers)')
-            resu = ban.findall(title)
-            if len(resu) > 0:
+            if [ban for ban in ban_list if ban in title]:
+                logger.warning('song banned')
                 playlist[guild].pop(0)
                 await bot.client.send(
                     channel[guild],
@@ -415,10 +413,8 @@ async def neteaseradio(guild: str, song_name: str, LOCK: dict,
             song_url = 'https://music.163.com/#/program?id=' + song_name
             song_name = response['mainSong']['name']
             playlist[guild][0]['display'] = song_name
-            ban = compile('(惊雷)|(Lost Rivers)')
-            resu = ban.findall(song_name)
-            logger.warning(resu)
-            if len(resu) > 0:
+            if [ban for ban in ban_list if ban in song_name]:
+                logger.warning('song banned')
                 playlist[guild].pop(0)
                 await bot.client.send(
                     channel[guild],
@@ -627,9 +623,8 @@ async def qqmusic(guild: str, song_name: str, LOCK: dict, playlist: dict,
             getfile_url = 'http://127.0.0.1:3300/song/url?id=' + response[
                 'mid'] + '&mediaId=' + response['file'][
                     'media_mid'] + '&ownCookie=1'
-            ban = compile('(惊雷)|(Lost Rivers)')
-            resu = ban.findall(song_name)
-            if len(resu) > 0:
+            if [ban for ban in ban_list if ban in song_name]:
+                logger.warning('song banned')
                 playlist[guild].pop(0)
                 await bot.client.send(
                     channel[guild],
@@ -807,14 +802,11 @@ async def migu(guild: str, song_name: str, LOCK: dict, playlist: dict,
             duration[guild] = response["duration"] + deltatime
             song_name = response["name"]
             playlist[guild][0]['display'] = song_name
-            ban = compile('(惊雷)|(Lost Rivers)')
-            resu = ban.findall(song_name)
-            logger.warning(resu)
-            if len(resu) > 0:
-
+            if [ban for ban in ban_list if ban in song_name]:
+                logger.warning('song banned')
                 playlist[guild].pop(0)
                 await bot.client.send(
-                    await bot.fetch_public_channel(channel[guild]),
+                    channel[guild],
                     '吃了吗，没吃吃我一拳',
                 )
                 duration[guild] = 0
@@ -937,9 +929,8 @@ async def kmusic(guild: str, song_name: str, LOCK: dict, playlist: dict,
                 'detail']['uid']
             pic_url = response['detail']['cover']
             urlresponse = response['detail']['playurl']
-            ban = compile('(惊雷)|(Lost Rivers)')
-            resu = ban.findall(song_name)
-            if len(resu) > 0:
+            if [ban for ban in ban_list if ban in song_name]:
+                logger.warning('song banned')
                 playlist[guild].pop(0)
                 await bot.client.send(
                     channel[guild],
