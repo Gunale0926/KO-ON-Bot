@@ -59,7 +59,7 @@ async def netease(guild: str, song_name: str, LOCK: dict, netease_cookie: str,
 
                 playlist[guild].pop(0)
                 await bot.client.send(
-                    await bot.fetch_public_channel(config["channel"]),
+                    await bot.fetch_public_channel(channel[guild]),
                     '吃了吗，没吃吃我一拳',
                 )
                 duration[guild] = 0
@@ -814,7 +814,7 @@ async def migu(guild: str, song_name: str, LOCK: dict, playlist: dict,
 
                 playlist[guild].pop(0)
                 await bot.client.send(
-                    await bot.fetch_public_channel(config["channel"]),
+                    await bot.fetch_public_channel(channel[guild]),
                     '吃了吗，没吃吃我一拳',
                 )
                 duration[guild] = 0
