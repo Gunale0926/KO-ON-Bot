@@ -1,3 +1,3 @@
-import os
+from os import system
 while True:
-    os.system(r"cd Net* && node app.js && cd ..")
+    system(r"cd Net* && node app.js && cd ..")

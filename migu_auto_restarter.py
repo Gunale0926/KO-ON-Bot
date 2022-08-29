@@ -1,3 +1,3 @@
-import os
+from os import system
 while True:
-    os.system(r"cd Migu* && npm start && cd ..")
+    system(r"cd Migu* && npm start && cd ..")
