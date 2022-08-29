@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from os import _exit
 from random import shuffle
 from re import search
+from sys import argv
 from time import time
 
 from aiohttp import ClientSession, ClientTimeout, TCPConnector
@@ -50,13 +51,13 @@ lyrics = {}
 task_id = {}
 
 
-def run(argsbotid: str):
+def run():
     global rtcpport
     eventloop = new_event_loop()
     set_event_loop(eventloop)
     executor = ThreadPoolExecutor(1000)
 
-    botid = argsbotid
+    botid = argv[1]
     rtcpport = botid + '234'
 
     bot = Bot(token=config['token' + botid])
@@ -1027,3 +1028,5 @@ def run(argsbotid: str):
 
     ensure_future(bot.start(), loop=eventloop)
     eventloop.run_forever()
+
+run()

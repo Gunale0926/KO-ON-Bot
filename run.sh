@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
-#(cd QQMusicApi && yarn start & cd ../) &
+(cd MiguMusicApi && npm start & cd ../) &
+(cd QQMusicApi && npm start & cd ../) &
 (cd NeteaseCloudMusicApi && node app.js & cd ../) &
-nohup python3 bot1.py &
+python3.10 core.py 31
+
