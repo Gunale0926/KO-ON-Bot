@@ -107,6 +107,11 @@ def run():
         try:
             voiceid = voiceid[0].id
             if voiceid != voicechannelid[msg.ctx.guild.id]:
+                try:
+                    if msg.ctx.channel.id != channel[msg.ctx.guild.id].id:
+                        return
+                except:
+                    return
                 await msg.ctx.channel.send("请先进入听歌频道或退出重进")
                 return
         except Exception as e:
@@ -270,6 +275,11 @@ def run():
         try:
             voiceid = voiceid[0].id
             if voiceid != voicechannelid[msg.ctx.guild.id]:
+                try:
+                    if msg.ctx.channel.id != channel[msg.ctx.guild.id].id:
+                        return
+                except:
+                    return
                 await msg.ctx.channel.send("请先进入听歌频道或退出重进")
                 return
         except Exception as e:
@@ -384,6 +394,11 @@ def run():
         try:
             voiceid = voiceid[0].id
             if voiceid != voicechannelid[msg.ctx.guild.id]:
+                try:
+                    if msg.ctx.channel.id != channel[msg.ctx.guild.id].id:
+                        return
+                except:
+                    return
                 await msg.ctx.channel.send("请先进入听歌频道或退出重进")
                 return
         except Exception as e:
@@ -660,6 +675,11 @@ def run():
         try:
             voiceid = voiceid[0].id
             if voiceid != voicechannelid[msg.ctx.guild.id]:
+                try:
+                    if msg.ctx.channel.id != channel[msg.ctx.guild.id].id:
+                        return
+                except:
+                    return
                 await msg.ctx.channel.send("请先进入听歌频道或退出重进")
                 return
         except Exception as e:
