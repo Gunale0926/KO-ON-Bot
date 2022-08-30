@@ -136,7 +136,7 @@ def get_netease_headers(netease_cookie: str) -> dict:
     return headers
 
 
-def get_helpcm(join_command: str, default_platform: str) -> list:
+def get_helpcm(default_platform: str) -> list:
     helpcm = [{
         "type":
         "card",
@@ -152,18 +152,6 @@ def get_helpcm(join_command: str, default_platform: str) -> list:
             }
         }, {
             "type": "divider"
-        }, {
-            "type": "section",
-            "text": {
-                "type": "kmarkdown",
-                "content": "**0.  " + join_command + "**"
-            }
-        }, {
-            "type": "section",
-            "text": {
-                "type": "kmarkdown",
-                "content": "功能:    让机器人进到你在的语音频道"
-            }
         }, {
             "type": "section",
             "text": {

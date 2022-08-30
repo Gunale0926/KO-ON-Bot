@@ -79,7 +79,6 @@ def run():
 
     logger.addHandler(file_handler)
     logger.addHandler(stream_handler)
-    join_command = status_manage.custom_join_command(config, botid, logger)
     default_platform = status_manage.custom_preferred_platform(
         config, botid, logger)
 
@@ -830,7 +829,7 @@ def run():
     @bot.command(name="帮助")
     async def help(msg: Message):
         await msg.ctx.channel.send(
-            status_manage.get_helpcm(join_command, default_platform))
+            status_manage.get_helpcm(default_platform))
 
     @bot.command(name="状态")
     async def status(msg: Message):
