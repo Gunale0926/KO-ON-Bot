@@ -1,0 +1,7 @@
+* KO-ON Bot
+A Music Player For kookapp.cn
+** Download
+#+BEGIN_SRC bash
+git clone git@github.com:CarterGunale/KO-ON-Bot.git --recursive
+python3 -m pip install -r KO-ON-Bot/requirements.txt
+#+END_SRC
