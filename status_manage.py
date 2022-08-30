@@ -603,7 +603,7 @@ async def disconnect(bot: Bot, guild: str, voice: dict, timeout: dict,
                      voiceffmpeg: dict, LOCK: dict, msgid: dict,
                      voicechannelid: dict, channel: dict, singleloops: dict,
                      playtime: dict, duration: dict, port: dict, pop_now: dict,
-                     task_id: dict, logger: Logger):
+                     task_id: dict, add_LOCK: dict, logger: Logger):
     try:
         process = Process(voiceffmpeg[guild].pid)
         for proc in process.children(recursive=True):
@@ -625,6 +625,7 @@ async def disconnect(bot: Bot, guild: str, voice: dict, timeout: dict,
     del port[guild]
     del pop_now[guild]
     del task_id[guild]
+    del add_LOCK[guild]
     await bot.client.update_listening_music(f"已用槽位:{str(len(voice))}", "KO-ON",
                                             SoftwareTypes.CLOUD_MUSIC)
     logger.warning(str(guild) + " disconnected")

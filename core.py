@@ -1,6 +1,8 @@
 from asyncio import (AbstractEventLoop, all_tasks, ensure_future,
                      get_event_loop, new_event_loop, set_event_loop, sleep)
 from concurrent.futures import ThreadPoolExecutor
+from importlib import reload as reload_module
+from logging import WARNING, FileHandler, Formatter, StreamHandler, getLogger
 from os import _exit
 from random import shuffle
 from re import search
@@ -8,16 +10,13 @@ from sys import argv
 from time import time
 
 from aiohttp import ClientSession, ClientTimeout, TCPConnector
-from khl import Bot, Event, EventTypes, SoftwareTypes, Message
+from khl import Bot, Event, EventTypes, Message, SoftwareTypes
 from khl.card import CardMessage
-
 from psutil import Process
 
 import music_manage
 import status_manage
 from voiceAPI import Voice
-from importlib import reload as reload_module
-from logging import WARNING, FileHandler, Formatter, StreamHandler, getLogger
 
 config = status_manage.load_config()
 playlist = {}
@@ -46,9 +45,11 @@ qq_cookie = config["q_cookie"]
 qq_id = config["q_id"]
 qq_enable = config["qq_enable"]
 bili_cookie = config["b_cookie"]
+schedule_server = f'{config["schedule_server_address"]}:{config["schedule_server_port"]}{config["schedule_server_path"]}'
 rtcpport = ''
 lyrics = {}
 task_id = {}
+add_LOCK = {}
 
 
 def run():
@@ -91,223 +92,169 @@ def run():
 
     @bot.command(name='导入歌单')
     async def import_playlist(msg: Message, linkid: str):
-        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
-            try:
-                if msg.ctx.channel.id != channel[msg.ctx.guild.id].id:
-                    return
-            except:
-                return
-            voiceid = await msg.ctx.guild.fetch_joined_channel(msg.author)
-            try:
-                voiceid = voiceid[0].id
-                if voiceid != voicechannelid[msg.ctx.guild.id]:
-                    await msg.ctx.channel.send("请先进入听歌频道或退出重进")
-                    return
-            except:
+        global qq_enable
+        global p
+        global port
+        global rtcpport
+        global channel
+        global voice
+        global voicechannelid
+        global msgid
+        global JOINLOCK
+        global pop_now
+        global add_LOCK
+        voiceid = await msg.ctx.guild.fetch_joined_channel(msg.author)
+        try:
+            voiceid = voiceid[0].id
+            if voiceid != voicechannelid[msg.ctx.guild.id]:
                 await msg.ctx.channel.send("请先进入听歌频道或退出重进")
                 return
-            global playlist
-            global netease_cookie
-            enable_netease = True
-            enable_qqmusic = True
-            if "163.com" in linkid:
-                enable_qqmusic = False
-            if "qq.com" in linkid:
-                enable_netease = False
-            try:
-                if "fcgi-bin" in linkid:
-                    enable_netease = False
-                    linkid = status_manage.parse_kmd_to_url(linkid)
-                    headers = status_manage.get_qq_headers(qq_cookie)
+        except Exception as e:
+            if e.__class__ == IndexError:
+                await msg.ctx.channel.send("请先进入听歌频道或退出重进")
+                return
+        if type(voiceid) is not str:
+            return
+        post_msg = get_post_msg(msg, voiceid)
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            async with session.post(url=schedule_server,
+                                    json=post_msg,
+                                    timeout=ClientTimeout(total=5)) as r:
+                status = await r.text()
+                if not post_msg['already_in'][0]:
+                    add_LOCK[msg.ctx.guild.id] = True
 
-                    async with session.get(
-                            url=linkid,
-                            headers=headers,
-                            timeout=ClientTimeout(total=5)) as r:
-                        linkid = await r.text()
-                pattern = r'(?<=[^user]id=)[0-9]+|(?<=playlist/)[0-9]+'
-                tmp = search(pattern, linkid)
-                assert tmp is not None
-                linkid = tmp.group()
-            except Exception as e:
-                logger.warning(e)
-            logger.warning(linkid)
-            headers = status_manage.get_netease_headers(netease_cookie)
-            if enable_netease:
+                    if status == 'REFUSE':
+                        return
+                    if status == 'REPORT':
+                        await msg.ctx.channel.send(
+                            "当前服务器内所有机器人槽位均已满，请加入交流服务器获取备用机 https://kook.top/vyAPVw"
+                        )
+                        return
+                    while JOINLOCK:
+                        await sleep(0.1)
+                    JOINLOCK = True
+                    try:
+                        logger.warning(voiceid)
+                        try:
+                            await init_guild(msg, voiceid)
+                            event_loop = get_event_loop()
+
+                            ensure_future(status_manage.start(
+                                voice[msg.ctx.guild.id], voiceid,
+                                msg.ctx.guild.id, voiceffmpeg, port, logger),
+                                          loop=event_loop)
+                            rtcpport = str(int(rtcpport) + 1)
+                            await bot.client.update_listening_music(
+                                f"已用槽位:{str(len(voice))}", "KO-ON",
+                                SoftwareTypes.CLOUD_MUSIC)
+                            JOINLOCK = False
+                            add_LOCK[msg.ctx.guild.id] = False
+                        except:
+                            JOINLOCK = False
+                            add_LOCK[msg.ctx.guild.id] = False
+                    except:
+                        JOINLOCK = False
+                        add_LOCK[msg.ctx.guild.id] = False
+                    JOINLOCK = False
+                    add_LOCK[msg.ctx.guild.id] = False
                 try:
-                    offset = 0
-                    while True:
-                        url = "http://127.0.0.1:3000/playlist/track/all?id=" + linkid + '&limit=1000&offset=' + str(
-                            offset * 1000)
-                        offset += 1
+                    if msg.ctx.channel.id != channel[msg.ctx.guild.id].id:
+                        return
+                except:
+                    return
+
+                while add_LOCK[msg.ctx.guild.id]:
+                    await sleep(0.1)
+                global netease_cookie
+                enable_netease = True
+                enable_qqmusic = True
+                if "163.com" in linkid:
+                    enable_qqmusic = False
+                if "qq.com" in linkid:
+                    enable_netease = False
+                try:
+                    if "fcgi-bin" in linkid:
+                        enable_netease = False
+                        linkid = status_manage.parse_kmd_to_url(linkid)
+                        headers = status_manage.get_qq_headers(qq_cookie)
+
                         async with session.get(
-                                url,
+                                url=linkid,
                                 headers=headers,
                                 timeout=ClientTimeout(total=5)) as r:
+                            linkid = await r.text()
+                    pattern = r'(?<=[^user]id=)[0-9]+|(?<=playlist/)[0-9]+'
+                    tmp = search(pattern, linkid)
+                    assert tmp is not None
+                    linkid = tmp.group()
+                except Exception as e:
+                    logger.warning(e)
+                logger.warning(linkid)
+                headers = status_manage.get_netease_headers(netease_cookie)
+                if enable_netease:
+                    try:
+                        offset = 0
+                        while True:
+                            url = "http://127.0.0.1:3000/playlist/track/all?id=" + linkid + '&limit=1000&offset=' + str(
+                                offset * 1000)
+                            offset += 1
+                            async with session.get(
+                                    url,
+                                    headers=headers,
+                                    timeout=ClientTimeout(total=5)) as r:
+                                resp_json = await r.json()
+                                songs = resp_json.get("songs", [])
+                                if len(songs) == 0:
+                                    break
+                                for song in songs:
+                                    playlist[msg.ctx.guild.id].append({
+                                        'name':
+                                        song.get('name', '') + "-" +
+                                        song.get('ar', [])[0].get('name', '') +
+                                        '-' + str(song.get('id')),
+                                        'userid':
+                                        msg.author.id,
+                                        'type':
+                                        '网易',
+                                        'time':
+                                        int(round(time() * 1000)) +
+                                        1000000000000,
+                                        'display':
+                                        song.get('name', '')
+                                    })
+                    except:
+                        pass
+                if enable_qqmusic:
+                    try:
+                        url = "http://127.0.0.1:3300/songlist?id=" + linkid
+                        async with session.get(
+                                url, timeout=ClientTimeout(total=5)) as r:
                             resp_json = await r.json()
-                            songs = resp_json.get("songs", [])
-                            if len(songs) == 0:
-                                break
+                            songs = resp_json.get("data",
+                                                  {}).get("songlist", [])
                             for song in songs:
                                 playlist[msg.ctx.guild.id].append({
                                     'name':
-                                    song.get('name', '') + "-" +
-                                    song.get('ar', [])[0].get('name', '') +
-                                    '-' + str(song.get('id')),
+                                    song.get('songname', '') + "-" +
+                                    song.get('singer', [])[0].get('name', '') +
+                                    '-' + str(song.get('songmid')),
                                     'userid':
                                     msg.author.id,
                                     'type':
-                                    '网易',
+                                    'qq',
                                     'time':
                                     int(round(time() * 1000)) + 1000000000000,
                                     'display':
-                                    song.get('name', '')
+                                    song.get('songname', '')
                                 })
-                except:
-                    pass
-            if enable_qqmusic:
-                try:
-                    url = "http://127.0.0.1:3300/songlist?id=" + linkid
-                    async with session.get(
-                            url, timeout=ClientTimeout(total=5)) as r:
-                        resp_json = await r.json()
-                        songs = resp_json.get("data", {}).get("songlist", [])
-                        for song in songs:
-                            playlist[msg.ctx.guild.id].append({
-                                'name':
-                                song.get('songname', '') + "-" +
-                                song.get('singer', [])[0].get('name', '') +
-                                '-' + str(song.get('songmid')),
-                                'userid':
-                                msg.author.id,
-                                'type':
-                                'qq',
-                                'time':
-                                int(round(time() * 1000)) + 1000000000000,
-                                'display':
-                                song.get('songname', '')
-                            })
-                except:
-                    pass
-            await msg.ctx.channel.send("导入完成")
+                    except:
+                        pass
+                await msg.ctx.channel.send("导入完成")
 
     @bot.command(name='导入专辑')
     async def import_netease_album(msg: Message, linkid: str):
-        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
-            try:
-                if msg.ctx.channel.id != channel[msg.ctx.guild.id].id:
-                    return
-            except:
-                return
-            voiceid = await msg.ctx.guild.fetch_joined_channel(msg.author)
-            try:
-                voiceid = voiceid[0].id
-                if voiceid != voicechannelid[msg.ctx.guild.id]:
-                    await msg.ctx.channel.send("请先进入听歌频道或退出重进")
-                    return
-            except:
-                await msg.ctx.channel.send("请先进入听歌频道或退出重进")
-                return
-            global netease_cookie
-            try:
-                pattern = r'(?<=[^user]id=)[0-9]+'
-                tmp = search(pattern, linkid)
-                assert tmp is not None
-                linkid = tmp.group()
-            except:
-                pass
-            headers = status_manage.get_netease_headers(netease_cookie)
-            try:
-                global playlist
-
-                url = "http://127.0.0.1:3000/album?id=" + linkid
-
-                async with session.get(url,
-                                       headers=headers,
-                                       timeout=ClientTimeout(total=5)) as r:
-                    resp_json = await r.json()
-                    songs = resp_json.get("songs", [])
-
-                    for song in songs:
-                        playlist[msg.ctx.guild.id].append({
-                            'name':
-                            song.get('name', '') + "-" +
-                            song.get('ar', [])[0].get('name', '') + '-' +
-                            str(song.get('id')),
-                            'userid':
-                            msg.author.id,
-                            'type':
-                            '网易',
-                            'time':
-                            int(round(time() * 1000)) + 1000000000000,
-                            'display':
-                            song.get('name', '')
-                        })
-                await msg.ctx.channel.send("导入完成")
-            except:
-                pass
-
-    @bot.command(name='导入电台')
-    async def import_netease_radio(msg: Message, linkid: str):
-        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
-            try:
-                if msg.ctx.channel.id != channel[msg.ctx.guild.id].id:
-                    return
-            except:
-                return
-            voiceid = await msg.ctx.guild.fetch_joined_channel(msg.author)
-            try:
-                voiceid = voiceid[0].id
-                if voiceid != voicechannelid[msg.ctx.guild.id]:
-                    await msg.ctx.channel.send("请先进入听歌频道或退出重进")
-                    return
-            except:
-                await msg.ctx.channel.send("请先进入听歌频道或退出重进")
-                return
-            global netease_cookie
-            try:
-                pattern = r'(?<=[^user]id=)[0-9]+'
-                tmp = search(pattern, linkid)
-                assert tmp is not None
-                linkid = tmp.group()
-            except:
-                pass
-            headers = status_manage.get_netease_headers(netease_cookie)
-            try:
-                global playlist
-                offset = 0
-                while True:
-                    url = "http://127.0.0.1:3000/dj/program?rid=" + linkid + "&limit=1000&offset=" + str(
-                        offset * 1000)
-                    offset += 1
-
-                    async with session.get(
-                            url, headers=headers,
-                            timeout=ClientTimeout(total=5)) as r:
-                        resp_json = await r.json()
-                        programs = resp_json.get("programs", [])
-                        if len(programs) == 0:
-                            break
-                        for program in programs:
-                            playlist[msg.ctx.guild.id].append({
-                                'name':
-                                program.get('mainSong', {}).get('name', '') +
-                                '-' + str(program.get('id')),
-                                'userid':
-                                msg.author.id,
-                                'type':
-                                '网易电台',
-                                'time':
-                                int(round(time() * 1000)) + 1000000000000,
-                                'display':
-                                program.get('mainSong', {}).get('name', '')
-                            })
-                await msg.ctx.channel.send("导入完成")
-            except:
-                pass
-
-    @bot.command(name=join_command)
-    async def connect(msg: Message):
+        global qq_enable
         global playlist
         global p
         global port
@@ -318,54 +265,313 @@ def run():
         global msgid
         global JOINLOCK
         global pop_now
-        while JOINLOCK:
-            await sleep(0.1)
-        JOINLOCK = True
+        global add_LOCK
+        voiceid = await msg.ctx.guild.fetch_joined_channel(msg.author)
         try:
-            if len(voice) >= 2 and channel.get(msg.ctx.guild.id, -1) == -1:
-                await msg.ctx.channel.send(
-                    "播放槽位已满,请加入交流服务器获取备用机 https://kook.top/vyAPVw")
-                JOINLOCK = False
+            voiceid = voiceid[0].id
+            if voiceid != voicechannelid[msg.ctx.guild.id]:
+                await msg.ctx.channel.send("请先进入听歌频道或退出重进")
                 return
-            voiceid = await msg.ctx.guild.fetch_joined_channel(msg.author)
-            try:
-                voiceid = voiceid[0].id
-            except:
-                await msg.ctx.channel.send("请先进入一个语音频道或退出重进")
-                JOINLOCK = False
+        except Exception as e:
+            if e.__class__ == IndexError:
+                await msg.ctx.channel.send("请先进入听歌频道或退出重进")
                 return
-            logger.warning(voiceid)
-            try:
-                task_id[msg.ctx.guild.id] = -1
-                singleloops[msg.ctx.guild.id] = 0
-                timeout[msg.ctx.guild.id] = 0
-                LOCK[msg.ctx.guild.id] = False
-                pop_now[msg.ctx.guild.id] = False
-                playlist[msg.ctx.guild.id] = []
-                voicechannelid[msg.ctx.guild.id] = voiceid
-                channel[msg.ctx.guild.id] = msg.ctx.channel
-                playtime[msg.ctx.guild.id] = 0
-                msgid[msg.ctx.guild.id] = "0"
-                duration[msg.ctx.guild.id] = 0
-                port[msg.ctx.guild.id] = rtcpport
-                await msg.ctx.channel.send("已加入频道")
-                voice[msg.ctx.guild.id] = Voice(config['token' + botid])
-                event_loop = get_event_loop()
+        if type(voiceid) is not str:
+            return
+        post_msg = get_post_msg(msg, voiceid)
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            async with session.post(url=schedule_server,
+                                    json=post_msg,
+                                    timeout=ClientTimeout(total=5)) as r:
+                status = await r.text()
+                if not post_msg['already_in'][0]:
+                    add_LOCK[msg.ctx.guild.id] = True
 
-                ensure_future(status_manage.start(voice[msg.ctx.guild.id],
-                                                  voiceid, msg.ctx.guild.id,
-                                                  voiceffmpeg, port, logger),
-                              loop=event_loop)
-                rtcpport = str(int(rtcpport) + 1)
-                await bot.client.update_listening_music(
-                    f"已用槽位:{str(len(voice))}", "KO-ON",
-                    SoftwareTypes.CLOUD_MUSIC)
-                JOINLOCK = False
-            except:
-                JOINLOCK = False
-        except:
-            JOINLOCK = False
-        JOINLOCK = False
+                    if status == 'REFUSE':
+                        return
+                    if status == 'REPORT':
+                        await msg.ctx.channel.send(
+                            "当前服务器内所有机器人槽位均已满，请加入交流服务器获取备用机 https://kook.top/vyAPVw"
+                        )
+                        return
+                    while JOINLOCK:
+                        await sleep(0.1)
+                    JOINLOCK = True
+                    try:
+                        logger.warning(voiceid)
+                        try:
+                            await init_guild(msg, voiceid)
+                            event_loop = get_event_loop()
+
+                            ensure_future(status_manage.start(
+                                voice[msg.ctx.guild.id], voiceid,
+                                msg.ctx.guild.id, voiceffmpeg, port, logger),
+                                          loop=event_loop)
+                            rtcpport = str(int(rtcpport) + 1)
+                            await bot.client.update_listening_music(
+                                f"已用槽位:{str(len(voice))}", "KO-ON",
+                                SoftwareTypes.CLOUD_MUSIC)
+                            JOINLOCK = False
+                            add_LOCK[msg.ctx.guild.id] = False
+                        except:
+                            JOINLOCK = False
+                            add_LOCK[msg.ctx.guild.id] = False
+                    except:
+                        JOINLOCK = False
+                        add_LOCK[msg.ctx.guild.id] = False
+                    JOINLOCK = False
+                    add_LOCK[msg.ctx.guild.id] = False
+                try:
+                    if msg.ctx.channel.id != channel[msg.ctx.guild.id].id:
+                        return
+                except:
+                    return
+
+                while add_LOCK[msg.ctx.guild.id]:
+                    await sleep(0.1)
+                global netease_cookie
+                try:
+                    pattern = r'(?<=[^user]id=)[0-9]+'
+                    tmp = search(pattern, linkid)
+                    assert tmp is not None
+                    linkid = tmp.group()
+                except:
+                    pass
+                headers = status_manage.get_netease_headers(netease_cookie)
+                try:
+                    url = "http://127.0.0.1:3000/album?id=" + linkid
+
+                    async with session.get(
+                            url, headers=headers,
+                            timeout=ClientTimeout(total=5)) as r:
+                        resp_json = await r.json()
+                        songs = resp_json.get("songs", [])
+
+                        for song in songs:
+                            playlist[msg.ctx.guild.id].append({
+                                'name':
+                                song.get('name', '') + "-" +
+                                song.get('ar', [])[0].get('name', '') + '-' +
+                                str(song.get('id')),
+                                'userid':
+                                msg.author.id,
+                                'type':
+                                '网易',
+                                'time':
+                                int(round(time() * 1000)) + 1000000000000,
+                                'display':
+                                song.get('name', '')
+                            })
+                    await msg.ctx.channel.send("导入完成")
+                except:
+                    pass
+
+    @bot.command(name='导入电台')
+    async def import_netease_radio(msg: Message, linkid: str):
+        global qq_enable
+        global playlist
+        global p
+        global port
+        global rtcpport
+        global channel
+        global voice
+        global voicechannelid
+        global msgid
+        global JOINLOCK
+        global pop_now
+        global add_LOCK
+        voiceid = await msg.ctx.guild.fetch_joined_channel(msg.author)
+        try:
+            voiceid = voiceid[0].id
+            if voiceid != voicechannelid[msg.ctx.guild.id]:
+                await msg.ctx.channel.send("请先进入听歌频道或退出重进")
+                return
+        except Exception as e:
+            if e.__class__ == IndexError:
+                await msg.ctx.channel.send("请先进入听歌频道或退出重进")
+                return
+        if type(voiceid) is not str:
+            return
+        post_msg = get_post_msg(msg, voiceid)
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            async with session.post(url=schedule_server,
+                                    json=post_msg,
+                                    timeout=ClientTimeout(total=5)) as r:
+                status = await r.text()
+                if not post_msg['already_in'][0]:
+                    add_LOCK[msg.ctx.guild.id] = True
+
+                    if status == 'REFUSE':
+                        return
+                    if status == 'REPORT':
+                        await msg.ctx.channel.send(
+                            "当前服务器内所有机器人槽位均已满，请加入交流服务器获取备用机 https://kook.top/vyAPVw"
+                        )
+                        return
+                    while JOINLOCK:
+                        await sleep(0.1)
+                    JOINLOCK = True
+                    try:
+                        logger.warning(voiceid)
+                        try:
+                            await init_guild(msg, voiceid)
+                            event_loop = get_event_loop()
+
+                            ensure_future(status_manage.start(
+                                voice[msg.ctx.guild.id], voiceid,
+                                msg.ctx.guild.id, voiceffmpeg, port, logger),
+                                          loop=event_loop)
+                            rtcpport = str(int(rtcpport) + 1)
+                            await bot.client.update_listening_music(
+                                f"已用槽位:{str(len(voice))}", "KO-ON",
+                                SoftwareTypes.CLOUD_MUSIC)
+                            JOINLOCK = False
+                            add_LOCK[msg.ctx.guild.id] = False
+                        except:
+                            JOINLOCK = False
+                            add_LOCK[msg.ctx.guild.id] = False
+                    except:
+                        JOINLOCK = False
+                        add_LOCK[msg.ctx.guild.id] = False
+                    JOINLOCK = False
+                    add_LOCK[msg.ctx.guild.id] = False
+                try:
+                    if msg.ctx.channel.id != channel[msg.ctx.guild.id].id:
+                        return
+                except:
+                    return
+
+                while add_LOCK[msg.ctx.guild.id]:
+                    await sleep(0.1)
+                global netease_cookie
+                try:
+                    pattern = r'(?<=[^user]id=)[0-9]+'
+                    tmp = search(pattern, linkid)
+                    assert tmp is not None
+                    linkid = tmp.group()
+                except:
+                    pass
+                headers = status_manage.get_netease_headers(netease_cookie)
+                try:
+                    offset = 0
+                    while True:
+                        url = "http://127.0.0.1:3000/dj/program?rid=" + linkid + "&limit=1000&offset=" + str(
+                            offset * 1000)
+                        offset += 1
+
+                        async with session.get(
+                                url,
+                                headers=headers,
+                                timeout=ClientTimeout(total=5)) as r:
+                            resp_json = await r.json()
+                            programs = resp_json.get("programs", [])
+                            if len(programs) == 0:
+                                break
+                            for program in programs:
+                                playlist[msg.ctx.guild.id].append({
+                                    'name':
+                                    program.get('mainSong', {}).get(
+                                        'name', '') + '-' +
+                                    str(program.get('id')),
+                                    'userid':
+                                    msg.author.id,
+                                    'type':
+                                    '网易电台',
+                                    'time':
+                                    int(round(time() * 1000)) + 1000000000000,
+                                    'display':
+                                    program.get('mainSong',
+                                                {}).get('name', '')
+                                })
+                    await msg.ctx.channel.send("导入完成")
+                except:
+                    pass
+
+    def get_post_msg(msg: Message, voiceid: str):
+        return {
+            "server": msg.ctx.guild.id,
+            "voicechannel": voiceid,
+            "botid": [botid],
+            "able": [len(voice) < 2],
+            "already_in": [msg.ctx.guild.id in list(playlist.keys())]
+        }
+
+    async def init_guild(msg: Message, voiceid: str):
+        task_id[msg.ctx.guild.id] = -1
+        singleloops[msg.ctx.guild.id] = 0
+        timeout[msg.ctx.guild.id] = 0
+        LOCK[msg.ctx.guild.id] = False
+        pop_now[msg.ctx.guild.id] = False
+        playlist[msg.ctx.guild.id] = []
+        voicechannelid[msg.ctx.guild.id] = voiceid
+        channel[msg.ctx.guild.id] = msg.ctx.channel
+        playtime[msg.ctx.guild.id] = 0
+        msgid[msg.ctx.guild.id] = "0"
+        duration[msg.ctx.guild.id] = 0
+        port[msg.ctx.guild.id] = rtcpport
+        await msg.ctx.channel.send("已加入频道")
+        voice[msg.ctx.guild.id] = Voice(config['token' + botid])
+
+    # @bot.command(name=join_command)
+    # async def connect(msg: Message):
+    #     global playlist
+    #     global p
+    #     global port
+    #     global rtcpport
+    #     global channel
+    #     global voice
+    #     global voicechannelid
+    #     global msgid
+    #     global JOINLOCK
+    #     global pop_now
+    #     while JOINLOCK:
+    #         await sleep(0.1)
+    #     JOINLOCK = True
+    #     try:
+    #         if len(voice) >= 2 and channel.get(msg.ctx.guild.id, -1) == -1:
+    #             await msg.ctx.channel.send(
+    #                 "播放槽位已满,请加入交流服务器获取备用机 https://kook.top/vyAPVw")
+    #             JOINLOCK = False
+    #             return
+    #         voiceid = await msg.ctx.guild.fetch_joined_channel(msg.author)
+    #         try:
+    #             voiceid = voiceid[0].id
+    #         except:
+    #             await msg.ctx.channel.send("请先进入一个语音频道或退出重进")
+    #             JOINLOCK = False
+    #             return
+    #         logger.warning(voiceid)
+    #         try:
+    #             task_id[msg.ctx.guild.id] = -1
+    #             singleloops[msg.ctx.guild.id] = 0
+    #             timeout[msg.ctx.guild.id] = 0
+    #             LOCK[msg.ctx.guild.id] = False
+    #             pop_now[msg.ctx.guild.id] = False
+    #             playlist[msg.ctx.guild.id] = []
+    #             voicechannelid[msg.ctx.guild.id] = voiceid
+    #             channel[msg.ctx.guild.id] = msg.ctx.channel
+    #             playtime[msg.ctx.guild.id] = 0
+    #             msgid[msg.ctx.guild.id] = "0"
+    #             duration[msg.ctx.guild.id] = 0
+    #             port[msg.ctx.guild.id] = rtcpport
+    #             await msg.ctx.channel.send("已加入频道")
+    #             voice[msg.ctx.guild.id] = Voice(config['token' + botid])
+    #             event_loop = get_event_loop()
+
+    #             ensure_future(status_manage.start(voice[msg.ctx.guild.id],
+    #                                               voiceid, msg.ctx.guild.id,
+    #                                               voiceffmpeg, port, logger),
+    #                           loop=event_loop)
+    #             rtcpport = str(int(rtcpport) + 1)
+    #             await bot.client.update_listening_music(
+    #                 f"已用槽位:{str(len(voice))}", "KO-ON",
+    #                 SoftwareTypes.CLOUD_MUSIC)
+    #             JOINLOCK = False
+    #         except:
+    #             JOINLOCK = False
+    #     except:
+    #         JOINLOCK = False
+    #     JOINLOCK = False
 
     @bot.command(name='绑定点歌频道')
     async def bind_text_channel(msg: Message):
@@ -440,56 +646,119 @@ def run():
     async def addmusic(msg: Message, *args):
         global qq_enable
         global playlist
-        try:
-            if msg.ctx.channel.id != channel[msg.ctx.guild.id].id:
-                return
-        except:
-            return
+        global p
+        global port
+        global rtcpport
+        global channel
+        global voice
+        global voicechannelid
+        global msgid
+        global JOINLOCK
+        global pop_now
+        global add_LOCK
         voiceid = await msg.ctx.guild.fetch_joined_channel(msg.author)
         try:
             voiceid = voiceid[0].id
             if voiceid != voicechannelid[msg.ctx.guild.id]:
                 await msg.ctx.channel.send("请先进入听歌频道或退出重进")
                 return
-        except:
-            await msg.ctx.channel.send("请先进入听歌频道或退出重进")
+        except Exception as e:
+            if e.__class__ == IndexError:
+                await msg.ctx.channel.send("请先进入听歌频道或退出重进")
+                return
+        if type(voiceid) is not str:
             return
-        try:
-            args = list(args)
-            typ = default_platform
-            song_name = ''
-            coefficient = 1
-            if args[0] in status_manage.platform:
-                typ = args[0]
-                args.pop(0)
-                if typ in {
-                        'qq', 'qq音乐', 'QQ', 'QQ音乐', 'k歌', 'K歌', '全民k歌', '全民K歌'
-                } and qq_enable == '0':
-                    await msg.ctx.channel.send('未启用QQ音乐与全民k歌点歌')
-                    return None
-                if typ in {'ytb', 'YTB', 'youtube', 'Youtube', '油管'}:
-                    await msg.ctx.channel.send('Youtube点歌功能因涉及敏感信息暂时下线')
-                    return None
-            if args[-1] in {"--置顶", "-置顶", "--top", "-top", "/置顶", "/top"}:
-                args.pop()
-                coefficient = -1
-            for st in args:
-                song_name = song_name + st + " "
-            playlist[msg.ctx.guild.id].append({
-                'name':
-                song_name,
-                'userid':
-                msg.author.id,
-                'type':
-                typ,
-                'time':
-                int(round(time() * 1000)) * coefficient,
-                'display':
-                song_name
-            })
-            await msg.ctx.channel.send("已添加")
-        except:
-            pass
+        post_msg = get_post_msg(msg, voiceid)
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            async with session.post(url=schedule_server,
+                                    json=post_msg,
+                                    timeout=ClientTimeout(total=5)) as r:
+                status = await r.text()
+                if not post_msg['already_in'][0]:
+                    add_LOCK[msg.ctx.guild.id] = True
+
+                    if status == 'REFUSE':
+                        return
+                    if status == 'REPORT':
+                        await msg.ctx.channel.send(
+                            "当前服务器内所有机器人槽位均已满，请加入交流服务器获取备用机 https://kook.top/vyAPVw"
+                        )
+                        return
+                    while JOINLOCK:
+                        await sleep(0.1)
+                    JOINLOCK = True
+                    try:
+                        logger.warning(voiceid)
+                        try:
+                            await init_guild(msg, voiceid)
+                            event_loop = get_event_loop()
+
+                            ensure_future(status_manage.start(
+                                voice[msg.ctx.guild.id], voiceid,
+                                msg.ctx.guild.id, voiceffmpeg, port, logger),
+                                          loop=event_loop)
+                            rtcpport = str(int(rtcpport) + 1)
+                            await bot.client.update_listening_music(
+                                f"已用槽位:{str(len(voice))}", "KO-ON",
+                                SoftwareTypes.CLOUD_MUSIC)
+                            JOINLOCK = False
+                            add_LOCK[msg.ctx.guild.id] = False
+                        except:
+                            JOINLOCK = False
+                            add_LOCK[msg.ctx.guild.id] = False
+                    except:
+                        JOINLOCK = False
+                        add_LOCK[msg.ctx.guild.id] = False
+                    JOINLOCK = False
+                    add_LOCK[msg.ctx.guild.id] = False
+                try:
+                    if msg.ctx.channel.id != channel[msg.ctx.guild.id].id:
+                        return
+                except:
+                    return
+
+                while add_LOCK[msg.ctx.guild.id]:
+                    await sleep(0.1)
+                try:
+                    args = list(args)
+                    typ = default_platform
+                    song_name = ''
+                    coefficient = 1
+                    if args[0] in status_manage.platform:
+                        typ = args[0]
+                        args.pop(0)
+                        if typ in {
+                                'qq', 'qq音乐', 'QQ', 'QQ音乐', 'k歌', 'K歌', '全民k歌',
+                                '全民K歌'
+                        } and qq_enable == '0':
+                            await msg.ctx.channel.send('未启用QQ音乐与全民k歌点歌')
+                            return None
+                        if typ in {'ytb', 'YTB', 'youtube', 'Youtube', '油管'}:
+                            await msg.ctx.channel.send('Youtube点歌功能因涉及敏感信息暂时下线'
+                                                       )
+                            return None
+                    if args[-1] in {
+                            "--置顶", "-置顶", "--top", "-top", "/置顶", "/top"
+                    }:
+                        args.pop()
+                        coefficient = -1
+                    for st in args:
+                        song_name = song_name + st + " "
+                    playlist[msg.ctx.guild.id].append({
+                        'name':
+                        song_name,
+                        'userid':
+                        msg.author.id,
+                        'type':
+                        typ,
+                        'time':
+                        int(round(time() * 1000)) * coefficient,
+                        'display':
+                        song_name
+                    })
+                    await msg.ctx.channel.send("已添加")
+                except:
+                    pass
 
     @bot.command(name="RELOAD")
     async def reload(msg: Message):
@@ -701,7 +970,7 @@ def run():
                 tmpchannel = eval(f.read())
             for guild, voiceid in voicechannelid.items():
                 logger.warning(voiceid)
-                channel[guild] = await bot.fetch_public_channel(
+                channel[guild] = await bot.client.fetch_public_channel(
                     tmpchannel[guild])
                 pop_now[guild] = False
                 singleloops[guild] = 0
@@ -709,6 +978,7 @@ def run():
                 LOCK[guild] = False
                 playtime[guild] = 0
                 duration[guild] = 0
+                add_LOCK[guild] = False
                 port[guild] = rtcpport
                 voice[guild] = Voice(config['token' + botid])
                 ensure_future(status_manage.start(voice[guild], voiceid, guild,
@@ -769,7 +1039,7 @@ def run():
                                                    voicechannelid, channel,
                                                    singleloops, playtime,
                                                    duration, port, pop_now,
-                                                   task_id, logger)
+                                                   task_id, add_LOCK, logger)
                     deletelist.append(guild)
                 continue
             else:
@@ -1020,13 +1290,13 @@ def run():
             tmp.insert(0, now)
             playlist[guild] = tmp
             LOCK[guild] = False
-        except Exception as err:
+        except:
             LOCK[guild] = False
-            logger.warning(str(err))
 
     bot.command.update_prefixes("")
 
     ensure_future(bot.start(), loop=eventloop)
     eventloop.run_forever()
+
 
 run()
