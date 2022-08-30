@@ -9,7 +9,6 @@ python3 -m pip install -r KO-ON-Bot/requirements.txt
 1. Rename ~config.tmp.json~ to config.json
 2. Fill Keywords with value
    - ~token*~: KOOK Bot token for bot *
-   - ~join_command*~ (Optional): Triger for Bot *
    - ~default_platform*~ (Optional): Default Platform for Bot *
    - ~n_*~: configs for Netease Music
    - ~b_*~: configs for Bilibili
