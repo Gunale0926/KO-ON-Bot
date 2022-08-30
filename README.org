@@ -1,27 +1,31 @@
 * KO-ON Bot
 A Music Player For kookapp.cn
-** Download
+** Use Docker Image
 #+BEGIN_SRC bash
-git clone git@github.com:CarterGunale/KO-ON-Bot.git --recursive
+docker pull qihaoran/ko-on-bot
+#+END_SRC
+** With Codes
+*** Download
+#+BEGIN_SRC bash
+git clone git@github.com:Gunale0926/KO-ON-Bot.git --recursive
 python3 -m pip install -r KO-ON-Bot/requirements.txt
 #+END_SRC
-** Config
+*** Config
 1. Rename ~config.tmp.json~ to config.json
 2. Fill Keywords with value
    - ~token*~: KOOK Bot token for bot *
-   - ~join_command*~ (Optional): Triger for Bot *
    - ~default_platform*~ (Optional): Default Platform for Bot *
    - ~n_*~: configs for Netease Music
    - ~b_*~: configs for Bilibili
    - ~qq_enable~: "1" or "0"
    - ~q_*~: configs for QQ Music
    - ~schedule_*~: configs for scheduler(refer to the template)
-** Run the BOT
-*** Windows
+*** Run the BOT
+**** Windows
 #+BEGIN_SRC bash
 start /main run.bat
 #+END_SRC
-*** Linux & macOS
+**** Linux & macOS
 #+BEGIN_SRC bash
 sh run.sh
 #+END_SRC
