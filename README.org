@@ -11,7 +11,7 @@ git clone git@github.com:Gunale0926/KO-ON-Bot.git --recursive
 python3 -m pip install -r KO-ON-Bot/requirements.txt
 #+END_SRC
 *** Config
-1. Rename ~config.tmp.json~ to config.json
+1. Rename ~config.tmp.json~ to ~config.json~
 2. Fill Keywords with value
    - ~token*~: KOOK Bot token for bot *
    - ~default_platform*~ (Optional): Default Platform for Bot *
