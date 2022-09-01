@@ -22,14 +22,24 @@ platform = {
 }
 
 
-def custom_join_command(config: dict, botid: str, logger: Logger) -> str:
+def custom_timeout(config: dict, logger: Logger) -> int:
     try:
-        assert config['join_command' + botid] != ''
-        logger.warning("自定义join命令装载")
-        return config['join_command' + botid]
+        assert config['timeout'] != '' and config['timeout'].isdigit()
+        logger.warning("自定义超时阈值装载:" + config['timeout'])
+        return int(config['timeout'])
     except:
-        logger.warning("默认join命令装载")
-        return botid + '号加入语音'
+        logger.warning("默认超时阈值装载")
+        return 60
+
+
+def custom_joincommand(config: dict, botid: str, logger: Logger) -> str:
+    try:
+        assert config[f'join_command{botid}'] != ''
+        logger.warning("自定义呼叫命令装载:" + config[f'join_command{botid}'])
+        return config[f'join_command{botid}']
+    except:
+        logger.warning("默认呼叫命令装载")
+        return f'{botid}号加入语音'
 
 
 def custom_preferred_platform(config: dict, botid: str, logger: Logger) -> str:
@@ -617,8 +627,6 @@ async def disconnect(bot: Bot, guild: str, voice: dict, timeout: dict,
     await bot.client.update_listening_music(f"已用槽位:{str(len(voice))}", "KO-ON",
                                             SoftwareTypes.CLOUD_MUSIC)
     logger.warning(str(guild) + " disconnected")
-
-
 @func_set_timeout(7)
 def delay_alignment(p: Popen, run_status: dict, logger: Logger):
     while p.poll() is None:

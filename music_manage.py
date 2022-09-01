@@ -255,7 +255,6 @@ async def netease(guild: str, song_name: str, LOCK: dict, netease_cookie: str,
                 lrc_list_to_dict(lyrics_trans_list, lrc_trans_dict, -0.5)
             if enable_roma:
                 lrc_list_to_dict(lyrics_roma_list, lrc_roma_dict, -0.5)
-            logger.warning(lrc_dict)
             if (await start_delay(bot, guild, voiceffmpeg, logger, event_loop,
                                   executor, playlist, duration, playtime, LOCK,
                                   channel)) == 'ERROR':
@@ -661,13 +660,8 @@ async def qqmusic(guild: str, song_name: str, LOCK: dict, playlist: dict,
 
             playtime[guild] = 0
             kill(guild, p, logger)
-
-            p[guild] = start_play(guild, port, botid)
             await delmsg(msgid[guild], config, botid, session, logger)
-            if (await start_delay(bot, guild, voiceffmpeg, logger, event_loop,
-                                  executor, playlist, duration, playtime, LOCK,
-                                  channel)) == 'ERROR':
-                return
+
             cm = CardMessage()
             c = get_playlist(guild, playlist)
             cm.append(c)
@@ -711,6 +705,7 @@ async def qqmusic(guild: str, song_name: str, LOCK: dict, playlist: dict,
                               bot.client.send(channel[guild],
                                               cm))["msg_id"]  # type: ignore
             playtime[guild] += deltatime
+            p[guild] = start_play(guild, port, botid)
         except Exception as e:
             playlist[guild].pop(0)
             duration[guild] = 0
@@ -750,13 +745,13 @@ async def qqmusic(guild: str, song_name: str, LOCK: dict, playlist: dict,
                     assert lyrics_trans_list != []
                 except:
                     enable_trans = False
-            lrc_list_to_dict(lyrics_list, lrc_dict, -1.5)
+            lrc_list_to_dict(lyrics_list, lrc_dict, -0.5)
             if enable_trans:
-                lrc_list_to_dict(lyrics_trans_list, lrc_trans_dict, -1.5)
-            logger.warning(lrc_dict)
-            await start_delay(bot, guild, voiceffmpeg, logger, event_loop,
-                              executor, playlist, duration, playtime, LOCK,
-                              channel)
+                lrc_list_to_dict(lyrics_trans_list, lrc_trans_dict, -0.5)
+            if (await start_delay(bot, guild, voiceffmpeg, logger, event_loop,
+                                  executor, playlist, duration, playtime, LOCK,
+                                  channel)) == 'ERROR':
+                return
             await play_lyrics(guild, lrc_dict, lrc_roma_dict, lrc_trans_dict,
                               enable_roma, enable_trans, lyrics_broadid,
                               config, botid, session, logger, event_loop,

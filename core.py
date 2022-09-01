@@ -17,7 +17,6 @@ from psutil import Process
 import music_manage
 import status_manage
 from voiceAPI import Voice
-
 config = status_manage.load_config()
 playlist = {}
 port = {}
@@ -50,7 +49,7 @@ rtcpport = ''
 lyrics = {}
 task_id = {}
 add_LOCK = {}
-
+deletelist = set()
 
 def run():
     global rtcpport
@@ -79,6 +78,8 @@ def run():
 
     logger.addHandler(file_handler)
     logger.addHandler(stream_handler)
+    join_command = status_manage.custom_joincommand(config, botid, logger)
+    timeout_threshold = status_manage.custom_timeout(config, logger)
     default_platform = status_manage.custom_preferred_platform(
         config, botid, logger)
 
@@ -507,7 +508,7 @@ def run():
             "voicechannel": voiceid,
             "botid": [botid],
             "able": [len(voice) < 2],
-            "already_in": [msg.ctx.guild.id in list(playlist.keys())]
+            "already_in": [msg.ctx.guild.id in list(voice.keys())]
         }
 
     async def init_guild(msg: Message, voiceid: str):
@@ -526,66 +527,76 @@ def run():
         await msg.ctx.channel.send("已加入频道")
         voice[msg.ctx.guild.id] = Voice(config['token' + botid])
 
-    # @bot.command(name=join_command)
-    # async def connect(msg: Message):
-    #     global playlist
-    #     global p
-    #     global port
-    #     global rtcpport
-    #     global channel
-    #     global voice
-    #     global voicechannelid
-    #     global msgid
-    #     global JOINLOCK
-    #     global pop_now
-    #     while JOINLOCK:
-    #         await sleep(0.1)
-    #     JOINLOCK = True
-    #     try:
-    #         if len(voice) >= 2 and channel.get(msg.ctx.guild.id, -1) == -1:
-    #             await msg.ctx.channel.send(
-    #                 "播放槽位已满,请加入交流服务器获取备用机 https://kook.top/vyAPVw")
-    #             JOINLOCK = False
-    #             return
-    #         voiceid = await msg.ctx.guild.fetch_joined_channel(msg.author)
-    #         try:
-    #             voiceid = voiceid[0].id
-    #         except:
-    #             await msg.ctx.channel.send("请先进入一个语音频道或退出重进")
-    #             JOINLOCK = False
-    #             return
-    #         logger.warning(voiceid)
-    #         try:
-    #             task_id[msg.ctx.guild.id] = -1
-    #             singleloops[msg.ctx.guild.id] = 0
-    #             timeout[msg.ctx.guild.id] = 0
-    #             LOCK[msg.ctx.guild.id] = False
-    #             pop_now[msg.ctx.guild.id] = False
-    #             playlist[msg.ctx.guild.id] = []
-    #             voicechannelid[msg.ctx.guild.id] = voiceid
-    #             channel[msg.ctx.guild.id] = msg.ctx.channel
-    #             playtime[msg.ctx.guild.id] = 0
-    #             msgid[msg.ctx.guild.id] = "0"
-    #             duration[msg.ctx.guild.id] = 0
-    #             port[msg.ctx.guild.id] = rtcpport
-    #             await msg.ctx.channel.send("已加入频道")
-    #             voice[msg.ctx.guild.id] = Voice(config['token' + botid])
-    #             event_loop = get_event_loop()
+    @bot.command(name='退出语音')
+    async def exit_voice(msg: Message):
+        voiceid = await msg.ctx.guild.fetch_joined_channel(msg.author)
+        try:
+            if msg.ctx.channel.id != channel[msg.ctx.guild.id].id:
+                return
+        except:
+            return
+        try:
+            voiceid = voiceid[0].id
+            if voiceid != voicechannelid[msg.ctx.guild.id]:
+                await msg.ctx.channel.send("请先进入听歌频道或退出重进")
+                return
+        except:
+            await msg.ctx.channel.send("请先进入听歌频道或退出重进")
+            return
+        try:
+            await leave_voice_channel(msg.ctx.guild.id)
+            await msg.ctx.channel.send("退出成功")
+        except:
+            pass
 
-    #             ensure_future(status_manage.start(voice[msg.ctx.guild.id],
-    #                                               voiceid, msg.ctx.guild.id,
-    #                                               voiceffmpeg, port, logger),
-    #                           loop=event_loop)
-    #             rtcpport = str(int(rtcpport) + 1)
-    #             await bot.client.update_listening_music(
-    #                 f"已用槽位:{str(len(voice))}", "KO-ON",
-    #                 SoftwareTypes.CLOUD_MUSIC)
-    #             JOINLOCK = False
-    #         except:
-    #             JOINLOCK = False
-    #     except:
-    #         JOINLOCK = False
-    #     JOINLOCK = False
+    @bot.command(name=join_command)
+    async def connect(msg: Message):
+        global playlist
+        global p
+        global port
+        global rtcpport
+        global channel
+        global voice
+        global voicechannelid
+        global msgid
+        global JOINLOCK
+        global pop_now
+        while JOINLOCK:
+            await sleep(0.1)
+        JOINLOCK = True
+        try:
+            if len(voice) >= 2 and channel.get(msg.ctx.guild.id, -1) == -1:
+                await msg.ctx.channel.send(
+                    "播放槽位已满,请加入交流服务器获取备用机 https://kook.top/vyAPVw")
+                JOINLOCK = False
+                return
+            voiceid = await msg.ctx.guild.fetch_joined_channel(msg.author)
+            try:
+                voiceid = voiceid[0].id
+            except:
+                await msg.ctx.channel.send("请先进入一个语音频道或退出重进")
+                JOINLOCK = False
+                return
+            logger.warning(voiceid)
+            try:
+                add_LOCK[msg.ctx.guild.id]=False
+                await init_guild(msg, voiceid)
+                event_loop = get_event_loop()
+
+                ensure_future(status_manage.start(voice[msg.ctx.guild.id],
+                                                  voiceid, msg.ctx.guild.id,
+                                                  voiceffmpeg, port, logger),
+                              loop=event_loop)
+                rtcpport = str(int(rtcpport) + 1)
+                await bot.client.update_listening_music(
+                    f"已用槽位:{str(len(voice))}", "KO-ON",
+                    SoftwareTypes.CLOUD_MUSIC)
+                JOINLOCK = False
+            except:
+                JOINLOCK = False
+        except:
+            JOINLOCK = False
+        JOINLOCK = False
 
     @bot.command(name='绑定点歌频道')
     async def bind_text_channel(msg: Message):
@@ -828,8 +839,7 @@ def run():
 
     @bot.command(name="帮助")
     async def help(msg: Message):
-        await msg.ctx.channel.send(
-            status_manage.get_helpcm(default_platform))
+        await msg.ctx.channel.send(status_manage.get_helpcm(default_platform))
 
     @bot.command(name="状态")
     async def status(msg: Message):
@@ -1026,6 +1036,7 @@ def run():
         global singleloops
         global load
         global pop_now
+        global deletelist
         if firstlogin:
             firstlogin = False
             await status_manage.login(bot, botid, qq_enable, netease_phone,
@@ -1037,7 +1048,6 @@ def run():
             await load_cache(botid, singleloops, timeout, LOCK, playtime,
                              duration, port, voice, config, voiceffmpeg,
                              event_loop)
-        deletelist = []
         savetag = False
         for guild, songlist in playlist.items():
 
@@ -1047,19 +1057,12 @@ def run():
             if len(playlist[guild]) == 0:
                 logger.warning("timeout +7")
                 timeout[guild] += deltatime
-                if timeout[guild] > 60:
-                    logger.warning("timeout auto leave")
-                    async with ClientSession(connector=TCPConnector(
-                            ssl=False)) as session:
-                        await status_manage.delmsg(msgid[guild], config, botid,
-                                                   session, logger)
-                    await status_manage.disconnect(bot, guild, voice, timeout,
-                                                   voiceffmpeg, LOCK, msgid,
-                                                   voicechannelid, channel,
-                                                   singleloops, playtime,
-                                                   duration, port, pop_now,
-                                                   task_id, add_LOCK, logger)
-                    deletelist.append(guild)
+                if timeout[guild] > timeout_threshold:
+                    try:
+                        await leave_voice_channel(guild)
+                        logger.warning("timeout auto leave")
+                    except:
+                        pass
                 continue
             else:
                 timeout[guild] = 0
@@ -1185,9 +1188,29 @@ def run():
         for guild in deletelist:
             savetag = True
             del playlist[guild]
+        deletelist.clear()
         if savetag:
             await status_manage.save_cache(botid, playlist, voicechannelid,
                                            msgid, channel)
+
+    async def leave_voice_channel(guild: str):
+        status_manage.kill(guild, p, logger)
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            await status_manage.delmsg(msgid[guild], config, botid, session,
+                                       logger)
+        try:
+            for task in all_tasks():
+                if id(task) == task_id[guild]:
+                    logger.warning('cancelling the task {}: {}'.format(
+                        id(task), task.cancel()))
+                    task_id[guild] = -1
+        except:
+            pass
+        await status_manage.disconnect(bot, guild, voice, timeout, voiceffmpeg,
+                                       LOCK, msgid, voicechannelid, channel,
+                                       singleloops, playtime, duration, port,
+                                       pop_now, task_id, add_LOCK, logger)
+        deletelist.add(guild)
 
     @bot.task.add_interval(minutes=30)
     async def keep_login():

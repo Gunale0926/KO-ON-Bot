@@ -71,7 +71,7 @@ async def timeout():
     timeout_queue = []
     keep_queue = []
     for msg in msg_queue:
-        if system_time < msg['timestamp'] + 1000:
+        if system_time < msg['timestamp'] + 1500:
             keep_queue.append(msg)
         else:
             timeout_queue.append(msg)
