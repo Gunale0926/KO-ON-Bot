@@ -618,13 +618,10 @@ async def start(voice: Voice, voiceid: str, guild: str, voiceffmpeg: dict,
 async def voice_Engine(voice: Voice, voiceid: str, guild: str,
                        voiceffmpeg: dict, port: dict, logger: Logger):
     logger.warning(voiceid)
-    rtp_url = ''
     voice.channel_id = voiceid
     while True:
         if len(voice.rtp_url) != 0:
-            rtp_url = voice.rtp_url
-            comm = "ffmpeg -re -loglevel debug -nostats -stream_loop -1 -i zmq:tcp://127.0.0.1:" + port[
-                guild] + " -map 0:a:0 -acodec libopus -ab 128k -filter:a volume=0.15 -ac 2 -ar 48000 -f tee [select=a:f=rtp:ssrc=1357:payload_type=100]" + rtp_url
+            comm = f"ffmpeg -re -loglevel debug -nostats -stream_loop -1 -i zmq:tcp://127.0.0.1:{port[guild]} -map 0:a:0 -acodec libopus -ab 128k -filter:a volume=0.15 -ac 2 -ar 48000 -f tee [select=a:f=rtp:ssrc={voice.ssrc}:payload_type=100]{voice.rtp_url}"
             logger.warning(comm)
             voiceffmpeg[guild] = Popen(comm,
                                        shell=True,

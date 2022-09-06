@@ -14,6 +14,7 @@ class Voice:
     ws_clients: List[ClientWebSocketResponse] = []
     wait_handler_msgs = []
     is_exit = False
+    ssrc = 0
 
     def __init__(self, token: str):
         self.token = token
@@ -22,8 +23,9 @@ class Voice:
 
     async def get_gateway(self, channel_id: str) -> str:
         async with aiohttp.ClientSession() as session:
-            async with session.get(f'https://www.kaiheila.cn/api/v3/gateway/voice?channel_id={channel_id}',
-                                   headers={'Authorization': f'Bot {self.token}'}) as res:
+            async with session.get(
+                    f'https://www.kaiheila.cn/api/v3/gateway/voice?channel_id={channel_id}',
+                    headers={'Authorization': f'Bot {self.token}'}) as res:
                 return (await res.json())['data']['gateway_url']
 
     async def connect_ws(self):
@@ -34,7 +36,8 @@ class Voice:
                 self.ws_clients.append(ws)
                 async for msg in ws:
                     if msg.type == aiohttp.WSMsgType.TEXT:
-                        if len(self.ws_clients) != 0 and self.ws_clients[0] == ws:
+                        if len(self.ws_clients
+                               ) != 0 and self.ws_clients[0] == ws:
                             self.wait_handler_msgs.append(msg.data)
                     elif msg.type == aiohttp.WSMsgType.ERROR:
                         break
@@ -48,11 +51,59 @@ class Voice:
             if len(self.ws_clients) != 0:
                 break
             await asyncio.sleep(0.1)
-        with open('1.json', 'r') as f:
-            a = json.loads(f.read())
-        a['1']['id'] = random.randint(1000000, 9999999)
-        print('1:', a['1'])
-        await self.ws_clients[0].send_json(a['1'])
+        payload = {
+            "1": {
+                "request": True,
+                "id": random.randint(1000000, 9999999),
+                "method": "getRouterRtpCapabilities",
+                "data": {}
+            },
+            "2": {
+                "data": {
+                    "displayName": ""
+                },
+                "id": random.randint(1000000, 9999999),
+                "method": "join",
+                "request": True
+            },
+            "3": {
+                "data": {
+                    "comedia": True,
+                    "rtcpMux": False,
+                    "type": "plain"
+                },
+                "id": random.randint(1000000, 9999999),
+                "method": "createPlainTransport",
+                "request": True
+            },
+            "4": {
+                "data": {
+                    "appData": {},
+                    "kind": "audio",
+                    "peerId": "",
+                    "rtpParameters": {
+                        "codecs": [{
+                            "channels": 2,
+                            "clockRate": 48000,
+                            "mimeType": "audio/opus",
+                            "parameters": {
+                                "sprop-stereo": 1
+                            },
+                            "payloadType": 100
+                        }],
+                        "encodings": [{
+                            "ssrc": random.randint(1000, 9999)
+                        }]
+                    },
+                    "transportId": ""
+                },
+                "id": random.randint(1000000, 9999999),
+                "method": "produce",
+                "request": True
+            }
+        }
+        print('1:', payload['1'])
+        await self.ws_clients[0].send_json(payload['1'])
         now = 1
         ip = ''
         port = 0
@@ -64,15 +115,13 @@ class Voice:
                 data = json.loads(self.wait_handler_msgs.pop(0))
                 if now == 1:
                     print('1:', data)
-                    a['2']['id'] = random.randint(1000000, 9999999)
-                    print('2:', a['2'])
-                    await self.ws_clients[0].send_json(a['2'])
+                    print('2:', payload['2'])
+                    await self.ws_clients[0].send_json(payload['2'])
                     now = 2
                 elif now == 2:
                     print('2:', data)
-                    a['3']['id'] = random.randint(1000000, 9999999)
-                    print('3:', a['3'])
-                    await self.ws_clients[0].send_json(a['3'])
+                    print('3:', payload['3'])
+                    await self.ws_clients[0].send_json(payload['3'])
                     now = 3
                 elif now == 3:
                     print('3:', data)
@@ -80,18 +129,19 @@ class Voice:
                     ip = data['data']['ip']
                     port = data['data']['port']
                     rtcp_port = data['data']['rtcpPort']
-                    a['4']['data']['transportId'] = transport_id
-                    a['4']['id'] = random.randint(1000000, 9999999)
-                    print('4:', a['4'])
-                    await self.ws_clients[0].send_json(a['4'])
+                    payload['4']['data']['transportId'] = transport_id
+                    self.ssrc = payload['4']['data']['rtpParameters']['encodings'][
+                        0]['ssrc']
+                    print('4:', payload['4'])
+                    await self.ws_clients[0].send_json(payload['4'])
                     now = 4
                 elif now == 4:
                     print('4:', data)
-                    print(f'ssrc=1357 ffmpeg rtp url: rtp://{ip}:{port}?rtcpport={rtcp_port}')
                     self.rtp_url = f'rtp://{ip}:{port}?rtcpport={rtcp_port}'
                     now = 5
                 else:
-                    if 'notification' in data and 'method' in data and data['method'] == 'disconnect':
+                    if 'notification' in data and 'method' in data and data[
+                            'method'] == 'disconnect':
                         print('The connection had been disconnected', data)
                     else:
                         pass
@@ -117,7 +167,10 @@ class Voice:
                 ping_time = now_time
 
     async def main(self):
-        await asyncio.wait([self.ws_msg(), self.connect_ws(), self.ws_ping()], return_when='FIRST_COMPLETED')
+        await asyncio.wait(
+            [self.ws_msg(), self.connect_ws(),
+             self.ws_ping()],
+            return_when='FIRST_COMPLETED')
         if len(self.ws_clients) != 0:
             await self.ws_clients[0].close()
         self.is_exit = False
