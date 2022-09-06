@@ -17,6 +17,7 @@ from psutil import Process
 import music_manage
 import status_manage
 from voiceAPI import Voice
+
 config = status_manage.load_config()
 playlist = {}
 port = {}
@@ -50,6 +51,7 @@ lyrics = {}
 task_id = {}
 add_LOCK = {}
 deletelist = set()
+
 
 def run():
     global rtcpport
@@ -579,7 +581,7 @@ def run():
                 return
             logger.warning(voiceid)
             try:
-                add_LOCK[msg.ctx.guild.id]=False
+                add_LOCK[msg.ctx.guild.id] = False
                 await init_guild(msg, voiceid)
                 event_loop = get_event_loop()
 
@@ -839,7 +841,8 @@ def run():
 
     @bot.command(name="帮助")
     async def help(msg: Message):
-        await msg.ctx.channel.send(status_manage.get_helpcm(default_platform))
+        await msg.ctx.channel.send(
+            status_manage.get_helpcm(default_platform, join_command))
 
     @bot.command(name="状态")
     async def status(msg: Message):
@@ -912,9 +915,10 @@ def run():
     @bot.command(name="搜索")
     async def musicsearch(msg: Message, *args):
         global netease_cookie
+        if botid != '1':
+            return
         async with ClientSession(connector=TCPConnector(ssl=False)) as session:
-            if botid != "1":
-                return
+            await msg.ctx.channel.send("请稍等,正在处理中")
             headers = status_manage.get_netease_headers(netease_cookie)
             song_name = ''
             for st in args:
@@ -1185,6 +1189,7 @@ def run():
                             playlist[guild].pop(0)
                         playtime[guild] = 0
                         duration[guild] = 0
+                        LOCK[guild] = False
         for guild in deletelist:
             savetag = True
             del playlist[guild]
@@ -1312,28 +1317,17 @@ def run():
             except:
                 LOCK[guild] = False
 
-    @bot.on_event(EventTypes.EXITED_CHANNEL)
-    async def on_exit_voice(_: Bot, e: Event):
-        guild = e.target_id
-        try:
-            while LOCK[guild]:
-                await sleep(0.1)
-            LOCK[guild] = True
-            global playlist
-            logger.warning(e.body)
-            if playlist[guild][0]['userid'] == e.body['user_id']:
-                pop_now[guild] = True
-            now = playlist[guild][0]
-            plcp = playlist[guild]
-            plcp.pop(0)
-            tmp = [
-                song for song in plcp if song['userid'] != e.body['user_id']
-            ]
-            tmp.insert(0, now)
-            playlist[guild] = tmp
-            LOCK[guild] = False
-        except:
-            LOCK[guild] = False
+    @bot.task.add_interval(minutes=1)
+    async def auto_check_exit_voice():
+        deletelist=[]
+        async with ClientSession(connector=TCPConnector(ssl=False)) as session:
+            for guild_id,voice_id in voicechannelid.items():
+                    response=await status_manage.vcch_usrlist(voice_id,config,botid,session)
+                    logger.warning(response)
+                    if len(response['data'])==1:
+                        deletelist.append(guild_id)
+        for guild_id in deletelist:
+            await leave_voice_channel(guild_id)
 
     bot.command.update_prefixes("")
 

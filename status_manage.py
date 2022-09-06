@@ -146,7 +146,7 @@ def get_netease_headers(netease_cookie: str) -> dict:
     return headers
 
 
-def get_helpcm(default_platform: str) -> list:
+def get_helpcm(default_platform: str, join_command: str) -> list:
     helpcm = [{
         "type":
         "card",
@@ -159,6 +159,34 @@ def get_helpcm(default_platform: str) -> list:
             "text": {
                 "type": "plain-text",
                 "content": "点歌机操作指南"
+            }
+        }, {
+            "type": "divider"
+        }, {
+            "type": "section",
+            "text": {
+                "type": "kmarkdown",
+                "content": f"**-1.  {join_command}**"
+            }
+        }, {
+            "type": "section",
+            "text": {
+                "type": "kmarkdown",
+                "content": "功能:    让bot加入语音"
+            }
+        }, {
+            "type": "divider"
+        }, {
+            "type": "section",
+            "text": {
+                "type": "kmarkdown",
+                "content": "**0.  退出语音**"
+            }
+        }, {
+            "type": "section",
+            "text": {
+                "type": "kmarkdown",
+                "content": "功能:    让bot退出语音"
             }
         }, {
             "type": "divider"
@@ -468,6 +496,16 @@ async def delmsg(msg_id: str, config: dict, botid: str, session: ClientSession,
         logger.warning(await r.text())
 
 
+async def vcch_usrlist(voice_id: str, config: dict, botid: str,
+                       session: ClientSession) -> dict:
+    url = f'https://www.kookapp.cn/api/v3/channel/user-list?channel_id={voice_id}'
+    headers = {"Authorization": "Bot " + config['token' + botid]}
+    async with session.get(url=url,
+                           headers=headers,
+                           timeout=ClientTimeout(total=5)) as r:
+        return await r.json()
+
+
 async def uptmsg(msg_id: str, content: str, config: dict, botid: str,
                  session: ClientSession, logger: Logger):
     logger.warning(msg_id)
@@ -627,6 +665,8 @@ async def disconnect(bot: Bot, guild: str, voice: dict, timeout: dict,
     await bot.client.update_listening_music(f"已用槽位:{str(len(voice))}", "KO-ON",
                                             SoftwareTypes.CLOUD_MUSIC)
     logger.warning(str(guild) + " disconnected")
+
+
 @func_set_timeout(7)
 def delay_alignment(p: Popen, run_status: dict, logger: Logger):
     while p.poll() is None:
