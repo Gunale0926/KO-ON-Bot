@@ -63,6 +63,7 @@ def run():
     rtcpport = botid + '234'
 
     bot = Bot(token=config['token' + botid])
+    bot.client.ignore_self_msg=False
     logger = getLogger('bot')
     logger.setLevel(level=WARNING)
 
@@ -1063,7 +1064,7 @@ def run():
                 timeout[guild] += deltatime
                 if timeout[guild] > timeout_threshold:
                     try:
-                        await leave_voice_channel(guild)
+                        deletelist.add(guild)
                         logger.warning("timeout auto leave")
                     except:
                         pass
@@ -1191,8 +1192,12 @@ def run():
                         duration[guild] = 0
                         LOCK[guild] = False
         for guild in deletelist:
-            savetag = True
-            del playlist[guild]
+            try:
+                savetag = True
+                await leave_voice_channel(guild)
+                del playlist[guild]
+            except:
+                pass
         deletelist.clear()
         if savetag:
             await status_manage.save_cache(botid, playlist, voicechannelid,
@@ -1319,15 +1324,12 @@ def run():
 
     @bot.task.add_interval(minutes=1)
     async def auto_check_exit_voice():
-        deletelist=[]
         async with ClientSession(connector=TCPConnector(ssl=False)) as session:
             for guild_id,voice_id in voicechannelid.items():
                     response=await status_manage.vcch_usrlist(voice_id,config,botid,session)
-                    logger.warning(response)
                     if len(response['data'])==1:
-                        deletelist.append(guild_id)
-        for guild_id in deletelist:
-            await leave_voice_channel(guild_id)
+                        logger.warning(f'{guild_id} auto leave')
+                        deletelist.add(guild_id)
 
     bot.command.update_prefixes("")
 

@@ -57,13 +57,13 @@ async def netease(guild: str, song_name: str, LOCK: dict, netease_cookie: str,
             if [ban for ban in ban_list if ban in song_name]:
                 logger.warning('song banned')
                 playlist[guild].pop(0)
+                duration[guild] = 0
+                playtime[guild] = 0
+                LOCK[guild] = False
                 await bot.client.send(
                     channel[guild],
                     '吃了吗，没吃吃我一拳',
                 )
-                duration[guild] = 0
-                playtime[guild] = 0
-                LOCK[guild] = False
                 return
             song_url = 'https://music.163.com/#/song?id=' + str(response['id'])
             album_name = response['al']['name']
@@ -304,13 +304,13 @@ async def bili(guild: str, song_name: str, LOCK: dict, bili_cookie: str,
             if [ban for ban in ban_list if ban in title]:
                 logger.warning('song banned')
                 playlist[guild].pop(0)
+                duration[guild] = 0
+                playtime[guild] = 0
+                LOCK[guild] = False
                 await bot.client.send(
                     channel[guild],
                     '吃了吗，没吃吃我一拳',
                 )
-                duration[guild] = 0
-                playtime[guild] = 0
-                LOCK[guild] = False
                 return
             playtime[guild] = 0
             kill(guild, p, logger)
@@ -415,13 +415,13 @@ async def neteaseradio(guild: str, song_name: str, LOCK: dict,
             if [ban for ban in ban_list if ban in song_name]:
                 logger.warning('song banned')
                 playlist[guild].pop(0)
+                duration[guild] = 0
+                playtime[guild] = 0
+                LOCK[guild] = False
                 await bot.client.send(
                     channel[guild],
                     '吃了吗，没吃吃我一拳',
                 )
-                duration[guild] = 0
-                playtime[guild] = 0
-                LOCK[guild] = False
                 return
 
             album_name = response['radio']['name']
@@ -559,7 +559,6 @@ async def neteaseradio(guild: str, song_name: str, LOCK: dict,
                     Element.Button('循环模式', 'LOOP', Types.Click.RETURN_VAL)),
                 color="#6AC629")
             cm.append(c)
-            logger.warning(dumps(cm))
             msgid[guild] = (await
                             bot.client.send(channel[guild],
                                             cm))["msg_id"]  # type: ignore
@@ -625,13 +624,13 @@ async def qqmusic(guild: str, song_name: str, LOCK: dict, playlist: dict,
             if [ban for ban in ban_list if ban in song_name]:
                 logger.warning('song banned')
                 playlist[guild].pop(0)
+                duration[guild] = 0
+                playtime[guild] = 0
+                LOCK[guild] = False
                 await bot.client.send(
                     channel[guild],
                     '吃了吗，没吃吃我一拳',
                 )
-                duration[guild] = 0
-                playtime[guild] = 0
-                LOCK[guild] = False
                 return
             try:
                 async with session.get(url=getfile_url,
@@ -800,13 +799,13 @@ async def migu(guild: str, song_name: str, LOCK: dict, playlist: dict,
             if [ban for ban in ban_list if ban in song_name]:
                 logger.warning('song banned')
                 playlist[guild].pop(0)
+                duration[guild] = 0
+                playtime[guild] = 0
+                LOCK[guild] = False
                 await bot.client.send(
                     channel[guild],
                     '吃了吗，没吃吃我一拳',
                 )
-                duration[guild] = 0
-                playtime[guild] = 0
-                LOCK[guild] = False
                 return
 
             song_url = 'https://music.migu.cn/v3/music/song/' + response['cid']
@@ -927,13 +926,13 @@ async def kmusic(guild: str, song_name: str, LOCK: dict, playlist: dict,
             if [ban for ban in ban_list if ban in song_name]:
                 logger.warning('song banned')
                 playlist[guild].pop(0)
+                duration[guild] = 0
+                playtime[guild] = 0
+                LOCK[guild] = False
                 await bot.client.send(
                     channel[guild],
                     '吃了吗，没吃吃我一拳',
                 )
-                duration[guild] = 0
-                playtime[guild] = 0
-                LOCK[guild] = False
                 return
             if response['detail']['segment_end'] != 0:
                 duration[guild] = int(
