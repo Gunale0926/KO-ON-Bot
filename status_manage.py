@@ -415,7 +415,7 @@ async def getInformation(duration: dict, deltatime: int, bvid: str, guild: str,
     return item
 
 
-async def getAudio(guild: str, item: list, botid: str, session: ClientSession):
+async def getAudio(guild: str, item: list, botid: str, bili_cookie:str,session: ClientSession):
     baseUrl = 'http://api.bilibili.com/x/player/playurl?fnval=16&'
     bvid, cid, title, mid, name, pic = item[0], item[1], item[2], item[
         3], item[4], item[5]
@@ -432,7 +432,8 @@ async def getAudio(guild: str, item: list, botid: str, session: ClientSession):
         'Referer':
         'https://api.bilibili.com/x/web-interface/view?bvid=' + bvid,
         'Origin': 'https://www.bilibili.com',
-        'Connection': 'keep-alive'
+        'Connection': 'keep-alive',
+        'cookie': bili_cookie
     }
     async with session.get(url=audioUrl,
                            headers=headers,

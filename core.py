@@ -547,7 +547,7 @@ def run():
             await msg.ctx.channel.send("请先进入听歌频道或退出重进")
             return
         try:
-            await leave_voice_channel(msg.ctx.guild.id)
+            deletelist.add(msg.ctx.guild.id)
             await msg.ctx.channel.send("退出成功")
         except:
             pass
@@ -1020,7 +1020,6 @@ def run():
                               loop=event_loop)
                 rtcpport = str(int(rtcpport) + 1)
                 await sleep(0.3)
-
         except:
             logger.warning('load cache fail')
 
@@ -1220,7 +1219,6 @@ def run():
                                        LOCK, msgid, voicechannelid, channel,
                                        singleloops, playtime, duration, port,
                                        pop_now, task_id, add_LOCK, logger)
-        deletelist.add(guild)
 
     @bot.task.add_interval(minutes=30)
     async def keep_login():
@@ -1327,8 +1325,8 @@ def run():
         async with ClientSession(connector=TCPConnector(ssl=False)) as session:
             for guild_id,voice_id in voicechannelid.items():
                     response=await status_manage.vcch_usrlist(voice_id,config,botid,session)
-                    if len(response['data'])==1:
-                        logger.warning(f'{guild_id} auto leave')
+                    if len(response['data'])<=1:
+                        logger.warning(f'{guild_id} empty leave')
                         deletelist.add(guild_id)
 
     bot.command.update_prefixes("")

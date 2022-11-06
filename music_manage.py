@@ -299,7 +299,7 @@ async def bili(guild: str, song_name: str, LOCK: dict, bili_cookie: str,
             item = await getInformation(duration, deltatime, song_name, guild,
                                         session, logger)
             bvid, cid, title, mid, name, pic = await getAudio(
-                guild, item, botid, session)
+                guild, item, botid, bili_cookie,session)
             logger.warning(duration[guild])
             if [ban for ban in ban_list if ban in title]:
                 logger.warning('song banned')

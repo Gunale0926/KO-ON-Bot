@@ -141,3 +141,4 @@ webtest1.py
 .DS_Store
 ws.py
 .vscode/settings.json
+test.py
