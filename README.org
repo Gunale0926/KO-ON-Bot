@@ -29,3 +29,5 @@ start /main run.bat
 #+BEGIN_SRC bash
 sh run.sh
 #+END_SRC
+**** With Docker
+https://github.com/Gunale0926/KO-ON-Bot/issues/19#issue-1517067767
