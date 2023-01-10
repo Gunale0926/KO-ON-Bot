@@ -25,9 +25,9 @@ python3 -m pip install -r KO-ON-Bot/requirements.txt
 #+BEGIN_SRC bash
 start /main run.bat
 #+END_SRC
-**** Linux & macOS
+**** macOS
 #+BEGIN_SRC bash
 sh run.sh
 #+END_SRC
-**** With Docker
+**** Linux
 https://github.com/Gunale0926/KO-ON-Bot/issues/19#issue-1517067767
